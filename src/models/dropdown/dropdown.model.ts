@@ -1,8 +1,9 @@
 import { Op, QueryTypes } from 'sequelize';
 import { sequelize } from '../../config/sequalizer';
 import { UserMaster } from '../masters/users/users.model';
-import { Project_Master } from '../masters/project/type.model'; // Changed import
-// If you have a Task model, import it here
+import { Project_Master } from '../masters/project/type.model'; 
+import Company_Master from '../masters/companyMaster/type.model';
+
 
 interface DropdownItem {
     value: string | number;
@@ -11,7 +12,7 @@ interface DropdownItem {
 
 export const getProjectHeads = async (activeOnly: boolean = true): Promise<DropdownItem[]> => {
     try {
-        // Since Project_Master uses different column names, update the query
+
         const query = `
             SELECT DISTINCT
                 pm.Project_Head AS value,
@@ -171,7 +172,7 @@ export const getAllDropdowns = async (activeOnly: boolean = true): Promise<{
     projectStatus: DropdownItem[];
     employees: DropdownItem[];
     tasks: DropdownItem[];
-    projects: DropdownItem[]; // Added projects dropdown
+    projects: DropdownItem[]; 
 }> => {
     try {
         const [projectHeads, projectStatus, employees, tasks, projects] = await Promise.all([
@@ -179,7 +180,7 @@ export const getAllDropdowns = async (activeOnly: boolean = true): Promise<{
             getProjectStatus(),
             getEmployees(activeOnly),
             getTasks(activeOnly),
-            getProjects(activeOnly) // Added projects
+            getProjects(activeOnly) 
         ]);
 
         return {
@@ -196,6 +197,27 @@ export const getAllDropdowns = async (activeOnly: boolean = true): Promise<{
     }
 };
 
+
+export const getCompany = async (activeOnly: boolean = true): Promise<DropdownItem[]> => {
+    try {
+      
+        
+   
+        const projects = await Company_Master.findAll({
+            order: [['Company_id', 'ASC']]
+        });
+        
+        return projects.map(project => ({
+            value: project.Company_id,
+            label: project.Company_Name
+        }));
+        
+    } catch (error) {
+        console.error('Error in getProjects:', error);
+        throw error;
+    }
+};
+
 export default {
     getProjectHeads,
     getProjectStatus,
@@ -203,5 +225,5 @@ export default {
     searchEmployees,
     getTasks,
     getProjects,
-    getAllDropdowns
+    getAllDropdowns,getCompany
 };

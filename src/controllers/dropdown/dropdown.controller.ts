@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import dropdownModel from '../../models/dropdown/dropdown.model';
 
-// Define types locally since import path might be wrong
+
 interface DropdownItem {
     value: string | number;
     label: string;
@@ -24,8 +24,7 @@ interface DropdownRequest extends Request {
     }
 }
 
-// Or if you have types in a different location, use correct import:
-// import { ApiResponse, DropdownRequest } from '../../types/types';
+
 
 export const getProjectHeadDropdown = async (req: DropdownRequest, res: Response): Promise<void> => {
     try {
@@ -192,7 +191,7 @@ export const getTaskDropdown = async (req: DropdownRequest, res: Response): Prom
     }
 };
 
-// Add projects dropdown if you have it in your model
+
 export const getProjectsDropdown = async (req: DropdownRequest, res: Response): Promise<void> => {
     try {
         const activeOnly = req.query.activeOnly !== 'false';
@@ -242,6 +241,36 @@ export const getAllDropdowns = async (req: DropdownRequest, res: Response): Prom
         const response: ApiResponse = {
             success: false,
             message: 'Failed to retrieve dropdowns',
+            error: error instanceof Error ? error.message : 'Unknown error',
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(500).json(response);
+    }
+};
+
+
+export const getCompany = async (req: DropdownRequest, res: Response): Promise<void> => {
+    try {
+        const activeOnly = req.query.activeOnly !== 'false';
+        const data = await (dropdownModel as any).getCompany?.(activeOnly) || [];
+        
+        const response: ApiResponse = {
+            success: true,
+            message: 'Company retrieved successfully',
+            data,
+            count: data.length,
+            timestamp: new Date().toISOString()
+        };
+        
+        res.status(200).json(response);
+        
+    } catch (error) {
+        console.error('Error in getProjectsDropdown:', error);
+        
+        const response: ApiResponse = {
+            success: false,
+            message: 'Failed to retrieve projects',
             error: error instanceof Error ? error.message : 'Unknown error',
             timestamp: new Date().toISOString()
         };

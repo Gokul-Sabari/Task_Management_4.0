@@ -6,6 +6,7 @@ import {
     getTaskDropdown,
     getAllDropdowns,
     searchEmployees,
+    getCompany
 
 } from '../../controllers/dropdown/dropdown.controller';
 import { authenticate } from '../../middleware/auth';
@@ -457,5 +458,56 @@ router.get('/tasks', authenticate, getTaskDropdown);
 router.get('/all', authenticate, getAllDropdowns);
 
 
+
+
+/**
+ * @swagger
+ * /api/masters/dropdowns/company:
+ *   get:
+ *     summary: Get company dropdown
+ *     description: Retrieve project heads from Company_Master table joined with tbl_Company_Master
+ *     tags: [Dropdowns]
+ *     parameters:
+ *       - $ref: '#/components/parameters/activeOnlyParam'
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved project heads
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: " company retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/company'
+ *                 count:
+ *                   type: integer
+ *                   example: 15
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Invalid query parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized - No token provided
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get('/company', authenticate, getCompany);
 
 export default router;

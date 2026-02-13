@@ -65,9 +65,9 @@ export const getAllTasks = async (req: Request, res: Response) => {
 
         const {
         
-            company_id,
-            task_group_id,
-            project_id,
+           Company_Id,
+            Task_Type_Id,
+            Project_Id,
             search,
             sortBy = 'Task_Id',
             sortOrder = 'DESC'
@@ -80,9 +80,9 @@ export const getAllTasks = async (req: Request, res: Response) => {
         // Build where clause
         const whereClause: any = {};
         
-        if (company_id !== undefined && company_id !== null) whereClause.Company_id = company_id;
-        if (task_group_id !== undefined) whereClause.Task_Group_Id = task_group_id;
-        if (project_id !== undefined && project_id !== null) whereClause.Project_Id = project_id;
+        if (Company_Id !== undefined && Company_Id !== null) whereClause.Company_Id = Company_Id;
+        if (Task_Type_Id !== undefined) whereClause.Task_Type_Id = Task_Type_Id;
+        if (Project_Id !== undefined && Project_Id !== null) whereClause.Project_Id = Project_Id;
         
         // Search functionality
         if (search) {
@@ -214,7 +214,7 @@ export const getTasksByCompany = async (req: Request, res: Response) => {
         }
 
         const tasks = await Task.findAll({
-            where: { Company_id: parseInt(companyId) },
+            where: { Company_Id: parseInt(companyId) },
             order: [['Task_Name', 'ASC']]
         });
 
@@ -252,7 +252,7 @@ export const getTasksByTaskGroup = async (req: Request, res: Response) => {
         }
 
         const tasks = await Task.findAll({
-            where: { Task_Group_Id: parseInt(taskGroupId) },
+            where: { Task_Type_Id: parseInt(taskGroupId) },
             order: [['Task_Name', 'ASC']]
         });
 
@@ -298,7 +298,7 @@ export const createTask = async (req: Request, res: Response) => {
         const existingTask = await Task.findOne({
             where: {
                 Task_Name: taskData.Task_Name.trim(),
-                Task_Group_Id: taskData.Task_Group_Id
+                Task_Type_Id: taskData.Task_Type_Id
             }
         });
 
@@ -314,7 +314,7 @@ export const createTask = async (req: Request, res: Response) => {
             ...taskData,
             Task_Name: taskData.Task_Name.trim(),
             Task_Desc: taskData.Task_Desc ? taskData.Task_Desc.trim() : null,
-            Company_id: taskData.Company_id || null,
+            Company_Id: taskData.Company_Id || null,
             Project_Id: taskData.Project_Id || null,
             Entry_By: (req as any).user?.id || 1,
             Entry_Date: new Date()
@@ -371,18 +371,18 @@ export const updateTask = async (req: Request, res: Response) => {
             return notFound(res, 'Task not found');
         }
 
-        // Check for duplicate task name if Task_Name or Task_Group_Id is being updated
+        // Check for duplicate task name if Task_Name or Task_Type_Id is being updated
         if ((updateData.Task_Name && updateData.Task_Name !== task.Task_Name) || 
-            (updateData.Task_Group_Id && updateData.Task_Group_Id !== task.Task_Group_Id)) {
+            (updateData.Task_Type_Id && updateData.Task_Type_Id !== task.Task_Type_Id)) {
             
             const checkTaskName = updateData.Task_Name || task.Task_Name;
-            const checkTaskGroupId = updateData.Task_Group_Id || task.Task_Group_Id;
+            const checkTaskGroupId = updateData.Task_Type_Id || task.Task_Type_Id;
             
             const existingTask = await Task.findOne({
                 where: {
                     Task_Id: { [Op.ne]: id },
                     Task_Name: checkTaskName.trim(),
-                    Task_Group_Id: checkTaskGroupId
+                    Task_Type_Id: checkTaskGroupId
                 }
             });
 
@@ -398,8 +398,8 @@ export const updateTask = async (req: Request, res: Response) => {
         const finalUpdateData: any = {};
         if (updateData.Task_Name !== undefined) finalUpdateData.Task_Name = updateData.Task_Name.trim();
         if (updateData.Task_Desc !== undefined) finalUpdateData.Task_Desc = updateData.Task_Desc ? updateData.Task_Desc.trim() : null;
-        if (updateData.Company_id !== undefined) finalUpdateData.Company_id = updateData.Company_id;
-        if (updateData.Task_Group_Id !== undefined) finalUpdateData.Task_Group_Id = updateData.Task_Group_Id;
+        if (updateData.Company_Id !== undefined) finalUpdateData.Company_Id = updateData.Company_Id;
+        if (updateData.Task_Type_Id !== undefined) finalUpdateData.Task_Type_Id = updateData.Task_Type_Id;
         if (updateData.Project_Id !== undefined) finalUpdateData.Project_Id = updateData.Project_Id;
         
         // Add update metadata
@@ -465,7 +465,7 @@ export const deleteTask = async (req: Request, res: Response) => {
 export const getTasksWithNoCompany = async (req: Request, res: Response) => {
     try {
         const tasks = await Task.findAll({
-            where: { Company_id: null },
+            where: { Company_Id: null },
             order: [['Task_Name', 'ASC']]
         });
 
@@ -482,7 +482,7 @@ export const getTasksWithNoCompany = async (req: Request, res: Response) => {
 };
 
 /**
- * Get tasks with null project_id
+ * Get tasks with null Project_Id
  */
 export const getTasksWithNoProject = async (req: Request, res: Response) => {
     try {

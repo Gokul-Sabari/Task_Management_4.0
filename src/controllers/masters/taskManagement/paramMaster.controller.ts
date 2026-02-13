@@ -1,4 +1,3 @@
-// controllers/masters/taskManagement/paramMaster.controller.ts
 import { Request, Response } from 'express';
 import {
     created,
@@ -9,7 +8,6 @@ import {
     sentData
 } from '../../../responseObject';
 import {
-    ParamMaster,
     ParamMasterCreationSchema,
     ParamMasterUpdateSchema,
     ParamMasterQuerySchema,
@@ -21,22 +19,21 @@ import {
 import { ZodError } from 'zod';
 import { sequelize } from '../../../config/sequalizer';
 
+/* -------------------- COMMON ZOD VALIDATION -------------------- */
 const validateWithZod = <T>(schema: any, data: any): {
     success: boolean;
     data?: T;
-    errors?: Array<{ field: string; message: string }>
+    errors?: Array<{ field: string; message: string }>;
 } => {
     try {
-        const validatedData = schema.parse(data);
-        return { success: true, data: validatedData };
-    } catch (error: any) {
+        return { success: true, data: schema.parse(data) };
+    } catch (error) {
         if (error instanceof ZodError) {
-            const zodIssues = error.issues || (error as any).errors || [];
             return {
                 success: false,
-                errors: zodIssues.map((err: any) => ({
-                    field: Array.isArray(err.path) ? err.path.join('.') : String(err.path || 'unknown'),
-                    message: err.message || 'Validation error'
+                errors: error.issues.map(err => ({
+                    field: err.path.join('.') || 'unknown',
+                    message: err.message
                 }))
             };
         }
@@ -47,21 +44,13 @@ const validateWithZod = <T>(schema: any, data: any): {
     }
 };
 
+/* -------------------- GET ALL -------------------- */
 export const getAllParamMasters = async (req: Request, res: Response) => {
     try {
-        // Filter out invalid sortBy before validation
-        const queryData: any = { ...req.query };
-        
-        // List of valid columns in tbl_Paramet_Master table
-        const validSortFields = ['Paramet_Id', 'Paramet_Name', 'Paramet_Data_Type', 'Company_id'];
-        
-        // If sortBy is invalid, remove it (will use default)
-        if (queryData.sortBy && !validSortFields.includes(queryData.sortBy as string)) {
-            console.warn(`Invalid sortBy parameter: ${queryData.sortBy}. Using default.`);
-            delete queryData.sortBy;
-        }
-
-        const validation = validateWithZod<ParamMasterQuery>(ParamMasterQuerySchema, queryData);
+        const validation = validateWithZod<ParamMasterQuery>(
+            ParamMasterQuerySchema,
+            req.query
+        );
 
         if (!validation.success) {
             return res.status(400).json({
@@ -71,147 +60,81 @@ export const getAllParamMasters = async (req: Request, res: Response) => {
             });
         }
 
-        const queryParams = validation.data!;
+        const { companyId, sortBy = 'Paramet_Id', sortOrder = 'ASC' } = validation.data!;
+        const validSortFields = ['Paramet_Id', 'Paramet_Name', 'Paramet_Data_Type', 'Company_id'];
 
-        let whereConditions = 'WHERE Del_Flag = 0';
-        let whereParams: any[] = [];
-        
-        if (queryParams.companyId) {
-            whereConditions += ` AND Company_id = ?`;
-            whereParams.push(queryParams.companyId);
+        if (!validSortFields.includes(sortBy)) {
+            return res.status(400).json({ success: false, message: 'Invalid sort field' });
         }
 
-        // Validate and set order field
-        const orderField = validSortFields.includes(queryParams.sortBy || '') 
-            ? queryParams.sortBy 
-            : 'Paramet_Id';
-        
-        const orderDirection = queryParams.sortOrder || 'ASC';
+        let where = 'WHERE Del_Flag = 0';
+        const params: any[] = [];
 
-        // Make sure the ORDER BY field is safe
-        if (!validSortFields.includes(orderField)) {
-            throw new Error(`Invalid order field: ${orderField}`);
+        if (companyId) {
+            where += ' AND Company_id = ?';
+            params.push(companyId);
         }
 
-        const dataQuery = `
-            SELECT 
-                Paramet_Id,
-                Paramet_Name,
-                Paramet_Data_Type,
-                Company_id,
-                Del_Flag
-            FROM tbl_Paramet_Master
-            ${whereConditions}
-            ORDER BY ${orderField} ${orderDirection}
-        `;
-
-      
-
-        const rows = await sequelize.query(dataQuery, {
-            replacements: whereParams,
-            type: 'SELECT'
-        }) as any[];
-
-        return sentData(res, rows);
-
-    } catch (err) {
-        console.error('Error fetching parameter masters:', err);
-        servError(err, res);
-    }
-};
-
-export const getParamMasterById = async (req: Request, res: Response) => {
-    try {
-        const validation = validateWithZod<{ id: number }>(paramMasterIdSchema, req.params);
-        
-        if (!validation.success) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid ID parameter',
-                errors: validation.errors
-            });
-        }
-
-        const { id } = validation.data!;
- 
         const query = `
-            SELECT 
-                Paramet_Id,
-                Paramet_Name,
-                Paramet_Data_Type,
-                Company_id,
-                Del_Flag
+            SELECT Paramet_Id, Paramet_Name, Paramet_Data_Type, Company_id, Del_Flag
             FROM tbl_Paramet_Master
-            WHERE Paramet_Id = ? AND Del_Flag = 0
+            ${where}
+            ORDER BY ${sortBy} ${sortOrder}
         `;
 
-        const result = await sequelize.query(query, {
-            replacements: [id],
+        const rows = await sequelize.query(query, {
+            replacements: params,
             type: 'SELECT'
         }) as any[];
 
-        if (result.length === 0) {
-            return notFound(res, 'Parameter Master not found');
-        }
-
-        sentData(res, result);
-
+        sentData(res, rows);
     } catch (e) {
-        console.error('Error fetching parameter master by ID:', e);
         servError(e, res);
     }
 };
 
+/* -------------------- GET BY ID -------------------- */
+export const getParamMasterById = async (req: Request, res: Response) => {
+    try {
+        const validation = validateWithZod<{ id: number }>(
+            paramMasterIdSchema,
+            req.params
+        );
+
+        if (!validation.success) {
+            return res.status(400).json({ success: false, errors: validation.errors });
+        }
+
+        const query = `
+            SELECT *
+            FROM tbl_Paramet_Master
+            WHERE Paramet_Id = ? AND Del_Flag = 0
+        `;
+
+        const rows = await sequelize.query(query, {
+            replacements: [validation.data!.id],
+            type: 'SELECT'
+        }) as any[];
+
+        if (!rows.length) return notFound(res, 'Parameter Master not found');
+
+        sentData(res, rows[0]);
+    } catch (e) {
+        servError(e, res);
+    }
+};
+
+/* -------------------- CREATE (IDENTITY FIXED) -------------------- */
 export const createParamMaster = async (req: Request, res: Response) => {
     try {
-        const normalizedBody = {
+        const body = {
             ...req.body,
             Paramet_Name: req.body.Paramet_Name?.trim()
         };
 
-       
-        if (normalizedBody.Paramet_Name) {
-            const checkDuplicateQuery = `
-                SELECT Paramet_Id 
-                FROM tbl_Paramet_Master 
-                WHERE UPPER(Paramet_Name) = UPPER(?) AND Del_Flag = 0
-            `;
-            
-            const existing = await sequelize.query(checkDuplicateQuery, {
-                replacements: [normalizedBody.Paramet_Name],
-                type: 'SELECT'
-            }) as any[];
-
-            if (existing.length > 0) {
-                return res.status(409).json({
-                    success: false,
-                    message: 'Parameter Master with this name already exists',
-                    field: 'Paramet_Name'
-                });
-            }
-        }
-
-        // Find max ID
-        const maxIdQuery = `
-            SELECT MAX(Paramet_Id) as maxId 
-            FROM tbl_Paramet_Master
-        `;
-        
-        const maxIdResult = await sequelize.query(maxIdQuery, {
-            type: 'SELECT'
-        }) as any[];
-
-        const nextId = (maxIdResult[0]?.maxId || 0) + 1;
-
-        const preparedData = {
-            ...normalizedBody,
-            Paramet_Id: nextId,
-            Del_Flag: 0
-        };
-
         const validation = validateWithZod<ParamMasterCreate>(
             ParamMasterCreationSchema,
-            preparedData
+            body
         );
 
         if (!validation.success) {
@@ -224,241 +147,112 @@ export const createParamMaster = async (req: Request, res: Response) => {
 
         const { Paramet_Name, Paramet_Data_Type, Company_id } = validation.data!;
 
-        // INSERT query
+        // Duplicate check
+        const dup = await sequelize.query(
+            `SELECT 1 FROM tbl_Paramet_Master WHERE UPPER(Paramet_Name)=UPPER(?) AND Del_Flag=0`,
+            { replacements: [Paramet_Name], type: 'SELECT' }
+        ) as any[];
+
+        if (dup.length) {
+            return res.status(409).json({
+                success: false,
+                message: 'Parameter Master already exists'
+            });
+        }
+
+        // ✅ Correct insert (NO Paramet_Id)
         const insertQuery = `
-            INSERT INTO tbl_Paramet_Master 
-            (Paramet_Id, Paramet_Name, Paramet_Data_Type, Company_id, Del_Flag)
-            VALUES (?, ?, ?, ?, 0)
+            INSERT INTO tbl_Paramet_Master
+            (Paramet_Name, Paramet_Data_Type, Company_id, Del_Flag)
+            OUTPUT INSERTED.Paramet_Id
+            VALUES (?, ?, ?, 0)
         `;
 
-        await sequelize.query(insertQuery, {
-            replacements: [
-                nextId, 
-                Paramet_Name, 
-                Paramet_Data_Type || null, 
-                Company_id || null
-            ]
-        });
-
-        // Get the inserted record
-        const getInsertedQuery = `
-            SELECT * FROM tbl_Paramet_Master 
-            WHERE Paramet_Id = ?
-        `;
-
-        const insertedRecord = await sequelize.query(getInsertedQuery, {
-            replacements: [nextId],
+        const result = await sequelize.query(insertQuery, {
+            replacements: [Paramet_Name, Paramet_Data_Type ?? null, Company_id ?? null],
             type: 'SELECT'
         }) as any[];
 
-        return created(res, insertedRecord[0], 'Parameter Master created successfully');
+        const insertedId = result[0].Paramet_Id;
 
-    } catch (error) {
-        console.error('Error creating parameter master:', error);
-        return servError(error, res);
+        const data = await sequelize.query(
+            `SELECT * FROM tbl_Paramet_Master WHERE Paramet_Id = ?`,
+            { replacements: [insertedId], type: 'SELECT' }
+        ) as any[];
+
+        created(res, data[0], 'Parameter Master created successfully');
+    } catch (e) {
+        servError(e, res);
     }
 };
 
+/* -------------------- UPDATE -------------------- */
 export const updateParamMaster = async (req: Request, res: Response) => {
     try {
-        const idValidation = validateWithZod<{ id: number }>(paramMasterIdSchema, req.params);
-        
-        if (!idValidation.success) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid ID parameter',
-                errors: idValidation.errors
-            });
-        }
+        const idCheck = validateWithZod<{ id: number }>(paramMasterIdSchema, req.params);
+        if (!idCheck.success) return res.status(400).json({ errors: idCheck.errors });
 
-        const { id } = idValidation.data!;
+        const bodyCheck = validateWithZod<ParamMasterUpdate>(
+            ParamMasterUpdateSchema,
+            req.body
+        );
+        if (!bodyCheck.success) return res.status(400).json({ errors: bodyCheck.errors });
 
-      
-        const checkExistsQuery = `
-            SELECT Paramet_Name, Paramet_Data_Type, Company_id 
-            FROM tbl_Paramet_Master 
-            WHERE Paramet_Id = ? AND Del_Flag = 0
-        `;
-        
-        const existingRecord = await sequelize.query(checkExistsQuery, {
-            replacements: [id],
-            type: 'SELECT'
-        }) as any[];
+        const fields: string[] = [];
+        const values: any[] = [];
 
-        if (existingRecord.length === 0) {
-            return notFound(res, 'Parameter Master not found');
-        }
-
-        const currentRecord = existingRecord[0];
-
-      
-        if (req.body.Paramet_Name && req.body.Paramet_Name.trim() !== currentRecord.Paramet_Name) {
-            const checkDuplicateQuery = `
-                SELECT Paramet_Id 
-                FROM tbl_Paramet_Master 
-                WHERE UPPER(Paramet_Name) = UPPER(?) AND Paramet_Id != ? AND Del_Flag = 0
-            `;
-            
-            const duplicate = await sequelize.query(checkDuplicateQuery, {
-                replacements: [req.body.Paramet_Name.trim(), id],
-                type: 'SELECT'
-            }) as any[];
-
-            if (duplicate.length > 0) {
-                return res.status(409).json({
-                    success: false,
-                    message: 'Another Parameter Master with this name already exists',
-                    field: 'Paramet_Name'
-                });
-            }
-        }
-
-        const validation = validateWithZod<ParamMasterUpdate>(ParamMasterUpdateSchema, req.body);
-        
-        if (!validation.success) {
-            return res.status(400).json({
-                success: false,
-                message: 'Validation failed',
-                errors: validation.errors
-            });
-        }
-
-        const validatedBody = validation.data!;
-
-        // Build UPDATE query
-        const updateFields: string[] = [];
-        const updateValues: any[] = [];
-
-        if (validatedBody.Paramet_Name !== undefined) {
-            updateFields.push('Paramet_Name = ?');
-            updateValues.push(validatedBody.Paramet_Name);
-        }
-
-        if (validatedBody.Paramet_Data_Type !== undefined) {
-            updateFields.push('Paramet_Data_Type = ?');
-            updateValues.push(validatedBody.Paramet_Data_Type);
-        }
-
-        if (validatedBody.Company_id !== undefined) {
-            updateFields.push('Company_id = ?');
-            updateValues.push(validatedBody.Company_id);
-        }
-
-        if (validatedBody.Del_Flag !== undefined) {
-            updateFields.push('Del_Flag = ?');
-            updateValues.push(validatedBody.Del_Flag);
-        }
-
-        // If no fields to update
-        if (updateFields.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'No fields to update'
-            });
-        }
-
-        updateValues.push(id); // Add ID for WHERE clause
-
-        const updateQuery = `
-            UPDATE tbl_Paramet_Master 
-            SET ${updateFields.join(', ')}
-            WHERE Paramet_Id = ?
-        `;
-
-        await sequelize.query(updateQuery, {
-            replacements: updateValues
+        Object.entries(bodyCheck.data!).forEach(([k, v]) => {
+            fields.push(`${k} = ?`);
+            values.push(v);
         });
 
-        // Get updated record
-        const getUpdatedQuery = `
-            SELECT * FROM tbl_Paramet_Master 
-            WHERE Paramet_Id = ?
-        `;
+        if (!fields.length) {
+            return res.status(400).json({ message: 'Nothing to update' });
+        }
 
-        const updatedRecord = await sequelize.query(getUpdatedQuery, {
-            replacements: [id],
-            type: 'SELECT'
-        }) as any[];
+        values.push(idCheck.data!.id);
 
-        updated(res, updatedRecord[0], 'Parameter Master updated successfully');
+        await sequelize.query(
+            `UPDATE tbl_Paramet_Master SET ${fields.join(', ')} WHERE Paramet_Id = ?`,
+            { replacements: values }
+        );
 
+        updated(res, null, 'Parameter Master updated successfully');
     } catch (e) {
-        console.error('Error updating parameter master:', e);
         servError(e, res);
     }
 };
 
+/* -------------------- DELETE (SOFT) -------------------- */
 export const deleteParamMaster = async (req: Request, res: Response) => {
     try {
-        const validation = validateWithZod<{ id: number }>(paramMasterIdSchema, req.params);
-        
-        if (!validation.success) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid ID parameter',
-                errors: validation.errors
-            });
-        }
+        const validation = validateWithZod<{ id: number }>(
+            paramMasterIdSchema,
+            req.params
+        );
+        if (!validation.success) return res.status(400).json({ errors: validation.errors });
 
-        const { id } = validation.data!;
-
-        // Check if record exists
-        const checkExistsQuery = `
-            SELECT Paramet_Id 
-            FROM tbl_Paramet_Master 
-            WHERE Paramet_Id = ? AND Del_Flag = 0
-        `;
-        
-        const existingRecord = await sequelize.query(checkExistsQuery, {
-            replacements: [id],
-            type: 'SELECT'
-        }) as any[];
-
-        if (existingRecord.length === 0) {
-            return notFound(res, 'Parameter Master not found');
-        }
-
-        // SOFT DELETE query (set Del_Flag = 1)
-        const deleteQuery = `
-            UPDATE tbl_Paramet_Master 
-            SET Del_Flag = 1
-            WHERE Paramet_Id = ?
-        `;
-
-        await sequelize.query(deleteQuery, {
-            replacements: [id]
-        });
+        await sequelize.query(
+            `UPDATE tbl_Paramet_Master SET Del_Flag = 1 WHERE Paramet_Id = ?`,
+            { replacements: [validation.data!.id] }
+        );
 
         deleted(res, 'Parameter Master deleted successfully');
-
     } catch (e) {
-        console.error('Error deleting parameter master:', e);
         servError(e, res);
     }
 };
 
-export const getAllActiveParamMasters = async (req: Request, res: Response) => {
+/* -------------------- ACTIVE LIST -------------------- */
+export const getAllActiveParamMasters = async (_: Request, res: Response) => {
     try {
-        const query = `
-            SELECT 
-                Paramet_Id,
-                Paramet_Name,
-                Paramet_Data_Type,
-                Company_id,
-                Del_Flag
-            FROM tbl_Paramet_Master
-            WHERE Del_Flag = 0
-            ORDER BY Paramet_Name ASC
-        `;
-
-        const rows = await sequelize.query(query, {
-            type: 'SELECT'
-        }) as any[];
+        const rows = await sequelize.query(
+            `SELECT * FROM tbl_Paramet_Master WHERE Del_Flag = 0 ORDER BY Paramet_Name`,
+            { type: 'SELECT' }
+        ) as any[];
 
         sentData(res, rows);
-
     } catch (e) {
-        console.error('Error fetching active parameter masters:', e);
         servError(e, res);
     }
 };

@@ -1,9 +1,8 @@
 import { Op, QueryTypes } from 'sequelize';
 import { sequelize } from '../../config/sequalizer';
 import { UserMaster } from '../masters/users/users.model';
-import { Project_Master } from '../masters/project/type.model'; 
+import { Project } from '../masters/project/type.model'; 
 import Company_Master from '../masters/companyMaster/type.model';
-
 
 interface DropdownItem {
     value: string | number;
@@ -12,7 +11,6 @@ interface DropdownItem {
 
 export const getProjectHeads = async (activeOnly: boolean = true): Promise<DropdownItem[]> => {
     try {
-
         const query = `
             SELECT DISTINCT
                 pm.Project_Head AS value,
@@ -33,10 +31,13 @@ export const getProjectHeads = async (activeOnly: boolean = true): Promise<Dropd
             }
         );
         
-        return results.map(row => ({
-            value: row.value,
-            label: row.label
-        }));
+        // Filter out any null labels and ensure label is always a string
+        return results
+            .filter(row => row.label !== null && row.label !== undefined)
+            .map(row => ({
+                value: row.value,
+                label: row.label || ''  // Fallback to empty string if somehow null
+            }));
         
     } catch (error) {
         console.error('Error in getProjectHeads:', error);
@@ -70,10 +71,12 @@ export const getEmployees = async (activeOnly: boolean = true): Promise<Dropdown
             order: [['name', 'ASC']]
         });
         
-        return users.map(user => ({
-            value: user.id,
-            label: user.name
-        }));
+        return users
+            .filter(user => user.name !== null && user.name !== undefined)
+            .map(user => ({
+                value: user.id,
+                label: user.name || ''
+            }));
         
     } catch (error) {
         console.error('Error in getEmployees:', error);
@@ -100,10 +103,12 @@ export const searchEmployees = async (searchTerm: string, activeOnly: boolean = 
             limit: 50
         });
         
-        return users.map(user => ({
-            value: user.id,
-            label: user.name
-        }));
+        return users
+            .filter(user => user.name !== null && user.name !== undefined)
+            .map(user => ({
+                value: user.id,
+                label: user.name || ''
+            }));
         
     } catch (error) {
         console.error('Error in searchEmployees:', error);
@@ -111,7 +116,6 @@ export const searchEmployees = async (searchTerm: string, activeOnly: boolean = 
     }
 };
 
-// If you need to get tasks, you'll need to import the Task model
 export const getTasks = async (activeOnly: boolean = true): Promise<DropdownItem[]> => {
     try {
         // Commented out until you have Task model
@@ -150,16 +154,18 @@ export const getProjects = async (activeOnly: boolean = true): Promise<DropdownI
             whereCondition.Project_Status = 1; // Active projects
         }
         
-        const projects = await Project_Master.findAll({
+        const projects = await Project.findAll({
             attributes: ['Project_Id', 'Project_Name'],
             where: whereCondition,
             order: [['Project_Name', 'ASC']]
         });
         
-        return projects.map(project => ({
-            value: project.Project_Id,
-            label: project.Project_Name
-        }));
+        return projects
+            .filter(project => project.Project_Name !== null && project.Project_Name !== undefined)
+            .map(project => ({
+                value: project.Project_Id,
+                label: project.Project_Name || ''
+            }));
         
     } catch (error) {
         console.error('Error in getProjects:', error);
@@ -197,20 +203,18 @@ export const getAllDropdowns = async (activeOnly: boolean = true): Promise<{
     }
 };
 
-
 export const getCompany = async (activeOnly: boolean = true): Promise<DropdownItem[]> => {
     try {
-      
-        
-   
         const projects = await Company_Master.findAll({
             order: [['Company_id', 'ASC']]
         });
         
-        return projects.map(project => ({
-            value: project.Company_id,
-            label: project.Company_Name
-        }));
+        return projects
+            .filter(project => project.Company_Name !== null && project.Company_Name !== undefined)
+            .map(project => ({
+                value: project.Company_id,
+                label: project.Company_Name || ''
+            }));
         
     } catch (error) {
         console.error('Error in getProjects:', error);
@@ -225,5 +229,6 @@ export default {
     searchEmployees,
     getTasks,
     getProjects,
-    getAllDropdowns,getCompany
+    getAllDropdowns,
+    getCompany
 };

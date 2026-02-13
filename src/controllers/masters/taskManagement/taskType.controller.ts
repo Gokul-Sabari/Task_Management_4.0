@@ -19,7 +19,7 @@ import {
 } from '../../../models/masters/taskType/type.model';
 import { ZodError } from 'zod';
 import { Op } from 'sequelize';
-import { Project_Master } from '../../../models/masters/project/type.model';
+import { Project } from '../../../models/masters/project/type.model';
 import { Task } from '../../../models/masters/task/type.model'
 
 const validateWithZod = <T>(schema: any, data: any): {
@@ -103,59 +103,50 @@ export const getAllTaskTypes = async (req: Request, res: Response) => {
             where.Is_Reptative = queryParams.isReptative === '1' ? 1 : 0;
         }
 
-
-
         const { rows, count } = await TaskType_Master.findAndCountAll({
             where,
             limit: queryParams.limit,
             offset: (queryParams.page - 1) * queryParams.limit,
-          
         });
 
-       
         const projectIds = rows
             .map(row => row.Project_Id)
             .filter((id): id is number => id !== null && id !== undefined)
             .filter((id, index, self) => self.indexOf(id) === index);
 
-      
-        const projectsMap = new Map<string | number, string>();
+        const projectsMap = new Map<number, string>();
         if (projectIds.length > 0) {
-            const projects = await Project_Master.findAll({
+            const projects = await Project.findAll({
                 where: {
                     Project_Id: projectIds
                 },
                 attributes: ['Project_Id', 'Project_Name']
             });
             
-          
             projects.forEach(project => {
                 const projectId = project.Project_Id;
                 const projectName = project.Project_Name;
                 
-           
-                const numId = Number(projectId);
-                if (!isNaN(numId)) {
-                    projectsMap.set(numId, projectName);
-                    projectsMap.set(projectId.toString(), projectName);
-                } else {
-                    projectsMap.set(projectId, projectName);
+                // Convert projectId to number and ensure projectName is not null
+                if (projectName !== null) {
+                    const numId = Number(projectId);
+                    if (!isNaN(numId)) {
+                        projectsMap.set(numId, projectName);
+                    }
                 }
             });
         }
 
-      
         const formattedRows = rows.map(row => {
             const taskType = row.toJSON();
             const projectId = taskType.Project_Id;
             
-      
             let projectName: string | null = null;
-            if (projectId) {
-         
-                projectName = projectsMap.get(Number(projectId)) || 
-                             projectsMap.get(projectId.toString()) || 
-                             null;
+            if (projectId !== null && projectId !== undefined) {
+                const numProjectId = Number(projectId);
+                if (!isNaN(numProjectId)) {
+                    projectName = projectsMap.get(numProjectId) || null;
+                }
             }
             
             return {
@@ -163,8 +154,6 @@ export const getAllTaskTypes = async (req: Request, res: Response) => {
                 Project_Name: projectName
             };
         });
-
-
 
         return sentData(res, formattedRows);
 
@@ -204,18 +193,13 @@ export const getTaskTypeById = async (req: Request, res: Response) => {
             return notFound(res, 'Task Type not found');
         }
 
-
-        const projectIds = taskType.Project_Id
-            ? [taskType.Project_Id]
-            : [];
-
-      
+        const projectId = taskType.Project_Id;
         let projectName: string | null = null;
 
-        if (projectIds.length > 0) {
-            const project = await Project_Master.findOne({
+        if (projectId !== null && projectId !== undefined) {
+            const project = await Project.findOne({
                 where: {
-                    Project_Id: projectIds[0]
+                    Project_Id: projectId
                 },
                 attributes: ['Project_Id', 'Project_Name']
             });
@@ -249,7 +233,6 @@ export const createTaskType = async (req: Request, res: Response) => {
             Task_Type: req.body.Task_Type?.trim()
         };
 
-      
         if (normalizedBody.Task_Type) {
             const existing = await TaskType_Master.findOne({
                 where: {
@@ -267,7 +250,6 @@ export const createTaskType = async (req: Request, res: Response) => {
             }
         }
 
-
         const preparedData = {
             ...normalizedBody,
             TT_Del_Flag: 0,
@@ -280,7 +262,6 @@ export const createTaskType = async (req: Request, res: Response) => {
                 : null
         };
 
-    
         const validation = validateWithZod<TaskTypeCreateInput>(
             taskTypeCreateSchema,
             preparedData
@@ -294,7 +275,6 @@ export const createTaskType = async (req: Request, res: Response) => {
             });
         }
 
-    
         const taskType = await TaskType_Master.create(validation.data);
 
         return created(res, taskType, 'Task Type created successfully');
@@ -320,7 +300,6 @@ export const updateTaskType = async (req: Request, res: Response) => {
 
         const { id } = idValidation.data!;
 
-
         const taskType = await TaskType_Master.findOne({
             where: {
                 Task_Type_Id: id,
@@ -331,7 +310,6 @@ export const updateTaskType = async (req: Request, res: Response) => {
         if (!taskType) {
             return notFound(res, 'Task Type not found or has been deleted');
         }
-
 
         if (req.body.Task_Type && req.body.Task_Type !== taskType.Task_Type) {
             const duplicateTaskType = await TaskType_Master.findOne({
@@ -351,7 +329,6 @@ export const updateTaskType = async (req: Request, res: Response) => {
             }
         }
 
-      
         const validation = validateWithZod<TaskTypeUpdateInput>(taskTypeUpdateSchema, req.body);
         if (!validation.success) {
             return res.status(400).json({
@@ -362,7 +339,6 @@ export const updateTaskType = async (req: Request, res: Response) => {
         }
 
         const validatedBody = validation.data!;
-
 
         const updateData = prepareTaskTypeData(validatedBody);
 
@@ -395,7 +371,6 @@ export const deleteTaskType = async (req: Request, res: Response) => {
         if (!taskType) {
             return notFound(res, 'Task Type not found');
         }
-
 
         await taskType.update({
             TT_Del_Flag: 1,
@@ -495,7 +470,6 @@ export const hardDeleteTaskType = async (req: Request, res: Response) => {
             return notFound(res, 'Task Type not found');
         }
 
-      
         await taskType.destroy();
 
         res.status(200).json({
@@ -545,8 +519,6 @@ export const getTaskTypesByProjectId = async (req: Request, res: Response) => {
         servError(e, res);
     }
 };
-
-
 
 export const getTaskTypesByTaskId = async (req: Request, res: Response) => {
   try {

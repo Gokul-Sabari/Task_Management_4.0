@@ -1,51 +1,58 @@
 import express from 'express';
 import { authenticate, authorize } from '../../middleware/auth';
-import { createProcessMaster, deleteProcessMaster, getAllProcessMaster, getProcessMasterById, updateProcessMaster } from '../../controllers/masters/taskManagement/processMaster.controller';
+import { 
+    createLeaveType, 
+    deleteLeaveType, 
+    getAllLeaveTypes, 
+    getLeaveTypeById, 
+    getLeaveTypeDropdown, 
+    updateLeaveType 
+} from '../../controllers/masters/taskManagement/leaveType.controller';
 
 const router = express.Router();
 
 /**
  * @swagger
  * tags:
- *   name: Process Master
- *   description: Process Master endpoints
+ *   name: Leave Type
+ *   description: Leave Type management endpoints
  */
 
 /**
  * @swagger
  * components:
  *   schemas:
- *     ProcessMaster:
+ *     LeaveType:
  *       type: object
  *       properties:
  *         Id:
  *           type: integer
  *           readOnly: true
  *           example: 1
- *         Process_Name:
+ *         LeaveType:
  *           type: string
- *           maxLength: 250
- *           example: "Monthly Reporting Process"
+ *           maxLength: 100
+ *           example: "Annual Leave"
  * 
- *     ProcessMasterCreate:
+ *     LeaveTypeCreate:
  *       type: object
  *       required:
- *         - Process_Name
+ *         - LeaveType
  *       properties:
- *         Process_Name:
+ *         LeaveType:
  *           type: string
- *           maxLength: 250
- *           example: "Monthly Reporting Process"
+ *           maxLength: 100
+ *           example: "Annual Leave"
  * 
- *     ProcessMasterUpdate:
+ *     LeaveTypeUpdate:
  *       type: object
  *       required:
- *         - Process_Name
+ *         - LeaveType
  *       properties:
- *         Process_Name:
+ *         LeaveType:
  *           type: string
- *           maxLength: 250
- *           example: "Updated Process Name"
+ *           maxLength: 100
+ *           example: "Updated Leave Type"
  * 
  *     Pagination:
  *       type: object
@@ -85,16 +92,16 @@ const router = express.Router();
  *             properties:
  *               field:
  *                 type: string
- *                 example: "Process_Name"
+ *                 example: "LeaveType"
  *               message:
  *                 type: string
- *                 example: "Process Name is required"
+ *                 example: "Leave type is required"
  * 
  *   parameters:
- *     processMasterId:
+ *     leaveTypeId:
  *       name: id
  *       in: path
- *       description: Process Master ID
+ *       description: Leave Type ID
  *       required: true
  *       schema:
  *         type: integer
@@ -127,7 +134,7 @@ const router = express.Router();
  *     searchQuery:
  *       name: search
  *       in: query
- *       description: Search by process name
+ *       description: Search by leave type name
  *       required: false
  *       schema:
  *         type: string
@@ -141,11 +148,11 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/masters/processMaster:
+ * /api/masters/leaveType:
  *   get:
- *     summary: Get all process masters with pagination and filtering
- *     description: Retrieve a paginated list of process masters with optional search
- *     tags: [Process Master]
+ *     summary: Get all leave types with pagination and filtering
+ *     description: Retrieve a paginated list of leave types with optional search
+ *     tags: [Leave Type]
  *     parameters:
  *       - $ref: '#/components/parameters/paginationPage'
  *       - $ref: '#/components/parameters/paginationLimit'
@@ -156,7 +163,7 @@ const router = express.Router();
  *         required: false
  *         schema:
  *           type: string
- *           enum: ["Id", "Process_Name"]
+ *           enum: ["Id", "LeaveType"]
  *           default: "Id"
  *       - name: sortOrder
  *         in: query
@@ -168,7 +175,7 @@ const router = express.Router();
  *           default: "ASC"
  *     responses:
  *       200:
- *         description: Successfully retrieved process masters
+ *         description: Successfully retrieved leave types
  *         content:
  *           application/json:
  *             schema:
@@ -179,11 +186,11 @@ const router = express.Router();
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Process masters retrieved successfully"
+ *                   example: "Leave types retrieved successfully"
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/ProcessMaster'
+ *                     $ref: '#/components/schemas/LeaveType'
  *                 pagination:
  *                   $ref: '#/components/schemas/Pagination'
  *       400:
@@ -195,20 +202,18 @@ const router = express.Router();
  *       500:
  *         description: Internal server error
  */
-router.get('/', getAllProcessMaster);
+router.get('/', getAllLeaveTypes);
 
 /**
  * @swagger
- * /api/masters/processMaster/{id}:
+ * /api/masters/leaveType/dropdown:
  *   get:
- *     summary: Get Process Master by ID
- *     description: Retrieve a specific Process Master by its ID
- *     tags: [Process Master]
- *     parameters:
- *       - $ref: '#/components/parameters/processMasterId'
+ *     summary: Get leave types for dropdown
+ *     description: Retrieve leave types in dropdown format (value, label)
+ *     tags: [Leave Type]
  *     responses:
  *       200:
- *         description: Successfully retrieved process master
+ *         description: Successfully retrieved leave types for dropdown
  *         content:
  *           application/json:
  *             schema:
@@ -219,13 +224,52 @@ router.get('/', getAllProcessMaster);
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Process master retrieved successfully"
+ *                   example: "Leave types for dropdown retrieved successfully"
  *                 data:
- *                   $ref: '#/components/schemas/ProcessMaster'
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       value:
+ *                         type: integer
+ *                         example: 1
+ *                       label:
+ *                         type: string
+ *                         example: "Annual Leave"
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/dropdown', getLeaveTypeDropdown);
+
+/**
+ * @swagger
+ * /api/masters/leaveType/{id}:
+ *   get:
+ *     summary: Get Leave Type by ID
+ *     description: Retrieve a specific Leave Type by its ID
+ *     tags: [Leave Type]
+ *     parameters:
+ *       - $ref: '#/components/parameters/leaveTypeId'
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved leave type
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Leave type retrieved successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/LeaveType'
  *       400:
  *         description: Invalid ID parameter
  *       404:
- *         description: Process master not found
+ *         description: Leave type not found
  *         content:
  *           application/json:
  *             schema:
@@ -236,19 +280,19 @@ router.get('/', getAllProcessMaster);
  *                   example: false
  *                 message:
  *                   type: string
- *                   example: "Process master not found"
+ *                   example: "Leave type not found"
  *       500:
  *         description: Internal server error
  */
-router.get('/:id', getProcessMasterById);
+router.get('/:id', getLeaveTypeById);
 
 /**
  * @swagger
- * /api/masters/processMaster:
+ * /api/masters/leaveType:
  *   post:
- *     summary: Create a new Process Master
- *     description: Create a new Process Master record
- *     tags: [Process Master]
+ *     summary: Create a new Leave Type
+ *     description: Create a new Leave Type record
+ *     tags: [Leave Type]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -256,10 +300,10 @@ router.get('/:id', getProcessMasterById);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ProcessMasterCreate'      
+ *             $ref: '#/components/schemas/LeaveTypeCreate'      
  *     responses:
  *       201:
- *         description: Process Master created successfully
+ *         description: Leave Type created successfully
  *         content:
  *           application/json:
  *             schema:
@@ -270,9 +314,9 @@ router.get('/:id', getProcessMasterById);
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Process master created successfully"
+ *                   example: "Leave type created successfully"
  *                 data:
- *                   $ref: '#/components/schemas/ProcessMaster'
+ *                   $ref: '#/components/schemas/LeaveType'
  *       400:
  *         description: Validation error
  *         content:
@@ -284,7 +328,7 @@ router.get('/:id', getProcessMasterById);
  *       403:
  *         description: Forbidden - Insufficient permissions
  *       409:
- *         description: Conflict - Process Master already exists
+ *         description: Conflict - Leave Type already exists
  *         content:
  *           application/json:
  *             schema:
@@ -295,36 +339,36 @@ router.get('/:id', getProcessMasterById);
  *                   example: false
  *                 message:
  *                   type: string
- *                   example: "Process master already exists"
+ *                   example: "Leave type already exists"
  *       500:
  *         description: Internal server error
  */
 router.post('/',
     authenticate,
     authorize([1, 2]),
-    createProcessMaster
+    createLeaveType
 );
 
 /**
  * @swagger
- * /api/masters/processMaster/{id}:
+ * /api/masters/leaveType/{id}:
  *   put:
- *     summary: Update a process Master
- *     description: Update an existing process Master by ID
- *     tags: [Process Master]
+ *     summary: Update a Leave Type
+ *     description: Update an existing Leave Type by ID
+ *     tags: [Leave Type]
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - $ref: '#/components/parameters/processMasterId'
+ *       - $ref: '#/components/parameters/leaveTypeId'
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ProcessMasterUpdate'
+ *             $ref: '#/components/schemas/LeaveTypeUpdate'
  *     responses:
  *       200:
- *         description: Process Master updated successfully
+ *         description: Leave Type updated successfully
  *         content:
  *           application/json:
  *             schema:
@@ -335,9 +379,9 @@ router.post('/',
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Process master updated successfully"
+ *                   example: "Leave type updated successfully"
  *                 data:
- *                   $ref: '#/components/schemas/ProcessMaster'
+ *                   $ref: '#/components/schemas/LeaveType'
  *       400:
  *         description: Validation error
  *         content:
@@ -349,7 +393,7 @@ router.post('/',
  *       403:
  *         description: Forbidden - Insufficient permissions
  *       404:
- *         description: ProcessMaster not found
+ *         description: Leave Type not found
  *         content:
  *           application/json:
  *             schema:
@@ -360,9 +404,9 @@ router.post('/',
  *                   example: false
  *                 message:
  *                   type: string
- *                   example: "Process master not found"
+ *                   example: "Leave type not found"
  *       409:
- *         description: Conflict - ProcessMaster name already exists
+ *         description: Conflict - Leave Type name already exists
  *         content:
  *           application/json:
  *             schema:
@@ -373,30 +417,30 @@ router.post('/',
  *                   example: false
  *                 message:
  *                   type: string
- *                   example: "Process master name already exists"
+ *                   example: "Leave type name already exists"
  *       500:
  *         description: Internal server error
  */
 router.put('/:id',
     authenticate,
     authorize([1, 2]),
-    updateProcessMaster
+    updateLeaveType
 );
 
 /**
  * @swagger
- * /api/masters/processMaster/{id}:
+ * /api/masters/leaveType/{id}:
  *   delete:
- *     summary: Delete a ProcessMaster
- *     description: Delete a ProcessMaster permanently
- *     tags: [Process Master]
+ *     summary: Delete a Leave Type
+ *     description: Delete a Leave Type permanently
+ *     tags: [Leave Type]
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - $ref: '#/components/parameters/processMasterId'
+ *       - $ref: '#/components/parameters/leaveTypeId'
  *     responses:
  *       200:
- *         description: ProcessMaster deleted successfully
+ *         description: Leave Type deleted successfully
  *         content:
  *           application/json:
  *             schema:
@@ -407,7 +451,7 @@ router.put('/:id',
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Process master deleted successfully"
+ *                   example: "Leave type deleted successfully"
  *       400:
  *         description: Invalid ID parameter
  *       401:
@@ -415,14 +459,14 @@ router.put('/:id',
  *       403:
  *         description: Forbidden - Insufficient permissions
  *       404:
- *         description: Process master not found
+ *         description: Leave type not found
  *       500:
  *         description: Internal server error
  */
 router.delete('/:id',
     authenticate,
     authorize([1]),
-    deleteProcessMaster
+    deleteLeaveType
 );
 
 export default router;

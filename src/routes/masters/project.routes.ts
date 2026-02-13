@@ -5,9 +5,8 @@ import {
     createProject,
     updateProject,
     deleteProject,
-    getActiveProjects,
-    restoreProject
-} from '../../controllers/masters/taskManagement/projectType.controller' // Update controller path
+    getActiveProjects
+} from '../../controllers/masters/taskManagement/projectType.controller';
 import { authenticate, authorize } from '../../middleware/auth';
 
 const router = express.Router();
@@ -15,140 +14,155 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Projects
- *   description: Project management endpoints
+ *   name: ProjectMaster
+ *   description: Project Master management endpoints
  */
 
 /**
  * @swagger
  * components:
  *   schemas:
- *     Project:
+ *     ProjectMaster:
  *       type: object
- *       required:
- *         - Project_Name
  *       properties:
  *         Project_Id:
  *           type: integer
  *           readOnly: true
  *         Project_Name:
  *           type: string
- *           maxLength: 250
+ *           nullable: true
  *         Project_Desc:
  *           type: string
  *           nullable: true
- *         Company_Id:
+ *         Company_id:
  *           type: integer
  *           nullable: true
- *           minimum: 0
  *         Project_Head:
  *           type: integer
  *           nullable: true
- *           minimum: 0
  *         Est_Start_Dt:
  *           type: string
  *           format: date-time
  *           nullable: true
- *           example: "2024-01-15T00:00:00Z"
  *         Est_End_Dt:
  *           type: string
  *           format: date-time
  *           nullable: true
- *           example: "2024-12-31T00:00:00Z"
  *         Project_Status:
- *           type: integer
- *           enum: [0, 1]
- *           default: 1
- *           description: "0 = Inactive, 1 = Active"
- *         Entry_By:
- *           type: integer
+ *           type: string
  *           nullable: true
- *           readOnly: true
+ *         Entry_By:
+ *           type: string
+ *           nullable: true
  *         Entry_Date:
  *           type: string
  *           format: date-time
- *           readOnly: true
- *           example: "2024-01-01T12:00:00Z"    
+ *           nullable: true
+ *         Update_By:
+ *           type: string
+ *           nullable: true
+ *         Update_Date:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  *         IsActive:
+ *           type: boolean
+ *           nullable: true
+ *         Del_Flag:
  *           type: integer
- *           enum: [0, 1]
- *           default: 1
- *           description: "0 = Inactive, 1 = Active"
+ *           nullable: true
+ *           default: 0
  * 
- *     ProjectCreate:
- *       type: object
- *       required:
- *         - Project_Name
- *       properties:
- *         Project_Name:
- *           type: string
- *           maxLength: 250
- *           example: "New Project"
- *         Project_Desc:
- *           type: string
- *           nullable: true
- *           example: "Project description"
- *         Company_Id:
- *           type: integer
- *           nullable: true
- *           example: 1
- *         Project_Head:
- *           type: integer
- *           nullable: true
- *           example: 5
- *         Est_Start_Dt:
- *           type: string
- *           format: date-time
- *           nullable: true
- *           example: "2024-01-15T00:00:00Z"
- *         Est_End_Dt:
- *           type: string
- *           format: date-time
- *           nullable: true
- *           example: "2024-12-31T00:00:00Z"
- *         Project_Status:
- *           type: integer
- *           enum: [0, 1]
- *           default: 1
- *           example: 1
- * 
- *     ProjectUpdate:
+ *     ProjectMasterCreate:
  *       type: object
  *       properties:
  *         Project_Name:
  *           type: string
- *           maxLength: 250
- *           example: "Updated Project Name"
+ *           nullable: true
  *         Project_Desc:
  *           type: string
  *           nullable: true
- *           example: "Updated description"
- *         Company_Id:
+ *         Company_id:
  *           type: integer
  *           nullable: true
- *           example: 2
  *         Project_Head:
  *           type: integer
  *           nullable: true
- *           example: 6
  *         Est_Start_Dt:
  *           type: string
  *           format: date-time
  *           nullable: true
- *           example: "2024-02-01T00:00:00Z"
  *         Est_End_Dt:
  *           type: string
  *           format: date-time
  *           nullable: true
- *           example: "2024-11-30T00:00:00Z"
  *         Project_Status:
- *           type: integer
- *           enum: [0, 1]
- *           example: 1
+ *           type: string
+ *           nullable: true
+ *         Entry_By:
+ *           type: string
+ *           nullable: true
+ *         Entry_Date:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         Update_By:
+ *           type: string
+ *           nullable: true
+ *         Update_Date:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  *         IsActive:
+ *           type: boolean
+ *           nullable: true
+ * 
+ *     ProjectMasterUpdate:
+ *       type: object
+ *       properties:
+ *         Project_Name:
+ *           type: string
+ *           nullable: true
+ *         Project_Desc:
+ *           type: string
+ *           nullable: true
+ *         Company_id:
  *           type: integer
- *           enum: [0, 1]
- *           example: 1
+ *           nullable: true
+ *         Project_Head:
+ *           type: integer
+ *           nullable: true
+ *         Est_Start_Dt:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         Est_End_Dt:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         Project_Status:
+ *           type: string
+ *           nullable: true
+ *         Entry_By:
+ *           type: string
+ *           nullable: true
+ *         Entry_Date:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         Update_By:
+ *           type: string
+ *           nullable: true
+ *         Update_Date:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         IsActive:
+ *           type: boolean
+ *           nullable: true
+ *         Del_Flag:
+ *           type: integer
+ *           nullable: true
  * 
  *     Pagination:
  *       type: object
@@ -191,7 +205,7 @@ const router = express.Router();
  *                 example: "Project_Name"
  *               message:
  *                 type: string
- *                 example: "Project Name is required"
+ *                 example: "Project name is required"
  * 
  *   parameters:
  *     projectId:
@@ -230,39 +244,54 @@ const router = express.Router();
  *     searchQuery:
  *       name: search
  *       in: query
- *       description: Search by project name
+ *       description: Search by project name, description, status, or ID
+ *       required: false
+ *       schema:
+ *         type: string
+ * 
+ *     projectNameFilter:
+ *       name: Project_Name
+ *       in: query
+ *       description: Filter by project name
  *       required: false
  *       schema:
  *         type: string
  * 
  *     projectStatusFilter:
- *       name: projectStatus
+ *       name: Project_Status
  *       in: query
  *       description: Filter by project status
  *       required: false
  *       schema:
  *         type: string
- *         enum: ["0", "1", "all"]
- *         default: "all"
  * 
  *     companyIdFilter:
- *       name: companyId
+ *       name: Company_id
  *       in: query
  *       description: Filter by company ID
  *       required: false
  *       schema:
  *         type: integer
- *         minimum: 0
  * 
- *     isActiveFilter:
- *       name: isActive
+ *     sortByParam:
+ *       name: sortBy
  *       in: query
- *       description: Filter by active status
+ *       description: Sort field
  *       required: false
  *       schema:
  *         type: string
- *         enum: ["0", "1", "all"]
- *         default: "1"
+ *         enum: ["Project_Id", "Project_Name", "Project_Status", "Company_id", "Est_Start_Dt", "Est_End_Dt"]
+ *         default: "Project_Id"
+ * 
+ *     sortOrderParam:
+ *       name: sortOrder
+ *       in: query
+ *       description: Sort order
+ *       required: false
+ *       schema:
+ *         type: string
+ *         enum: ["ASC", "DESC"]
+ *         default: "ASC"
  * 
  *   securitySchemes:
  *     bearerAuth:
@@ -270,48 +299,47 @@ const router = express.Router();
  *       scheme: bearer
  *       bearerFormat: JWT
  */
+
 /**
  * @swagger
  * /api/masters/project:
  *   get:
  *     summary: Get all projects with pagination and filtering
  *     description: Retrieve a paginated list of projects with optional filtering and search
- *     tags: [Projects]
+ *     tags: [ProjectMaster]
  *     parameters:
  *       - $ref: '#/components/parameters/paginationPage'
  *       - $ref: '#/components/parameters/paginationLimit'
  *       - $ref: '#/components/parameters/searchQuery'
+ *       - $ref: '#/components/parameters/projectNameFilter'
  *       - $ref: '#/components/parameters/projectStatusFilter'
  *       - $ref: '#/components/parameters/companyIdFilter'
- *       - $ref: '#/components/parameters/isActiveFilter'
- *       - name: projectHead
- *         in: query
- *         description: Filter by project head ID
- *         required: false
- *         schema:
- *           type: integer
- *           minimum: 0
- *       - name: sortBy
- *         in: query
- *         description: Sort field
- *         required: false
- *         schema:
- *           type: string
- *           enum: ["Project_Id", "Project_Name", "Est_Start_Dt", "Est_End_Dt", "Entry_Date"]
- *           default: "Project_Id"
- *       - name: sortOrder
- *         in: query
- *         description: Sort order
- *         required: false
- *         schema:
- *           type: string
- *           enum: ["ASC", "DESC"]
- *           default: "ASC"
+ *       - $ref: '#/components/parameters/sortByParam'
+ *       - $ref: '#/components/parameters/sortOrderParam'
  *     responses:
  *       200:
  *         description: Successfully retrieved projects
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/ProjectMaster'
+ *                 metadata:
+ *                   $ref: '#/components/schemas/Pagination'
  *       400:
  *         description: Invalid query parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         description: Internal server error
  */
@@ -322,10 +350,8 @@ router.get('/', getAllProjects);
  * /api/masters/project/active:
  *   get:
  *     summary: Get all active projects
- *     description: Retrieve all projects that are active (IsActive=1)
- *     tags: [Projects]
- *     parameters:
- *       - $ref: '#/components/parameters/companyIdFilter'
+ *     description: Retrieve all active projects (where Del_Flag = 0 and IsActive = true)
+ *     tags: [ProjectMaster]
  *     responses:
  *       200:
  *         description: Successfully retrieved active projects
@@ -341,7 +367,7 @@ router.get('/', getAllProjects);
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Project'
+ *                     $ref: '#/components/schemas/ProjectMaster'
  *       500:
  *         description: Internal server error
  */
@@ -353,7 +379,7 @@ router.get('/active', getActiveProjects);
  *   get:
  *     summary: Get project by ID
  *     description: Retrieve a specific project by its ID
- *     tags: [Projects]
+ *     tags: [ProjectMaster]
  *     parameters:
  *       - $ref: '#/components/parameters/projectId'
  *     responses:
@@ -369,7 +395,7 @@ router.get('/active', getActiveProjects);
  *                 message:
  *                   type: string
  *                 data:
- *                   $ref: '#/components/schemas/Project'
+ *                   $ref: '#/components/schemas/ProjectMaster'
  *       400:
  *         description: Invalid ID parameter
  *         content:
@@ -385,8 +411,10 @@ router.get('/active', getActiveProjects);
  *               properties:
  *                 success:
  *                   type: boolean
+ *                   example: false
  *                 message:
  *                   type: string
+ *                   example: "Project not found"
  *       500:
  *         description: Internal server error
  */
@@ -398,7 +426,7 @@ router.get('/:id', getProjectById);
  *   post:
  *     summary: Create a new project
  *     description: Create a new project record
- *     tags: [Projects]
+ *     tags: [ProjectMaster]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -406,7 +434,7 @@ router.get('/:id', getProjectById);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ProjectCreate'
+ *             $ref: '#/components/schemas/ProjectMasterCreate'
  *     responses:
  *       201:
  *         description: Project created successfully
@@ -420,9 +448,9 @@ router.get('/:id', getProjectById);
  *                 message:
  *                   type: string
  *                 data:
- *                   $ref: '#/components/schemas/Project'
+ *                   $ref: '#/components/schemas/ProjectMaster'
  *       400:
- *         description: Validation error or duplicate project name
+ *         description: Validation error
  *         content:
  *           application/json:
  *             schema:
@@ -438,7 +466,7 @@ router.get('/:id', getProjectById);
  */
 router.post('/',
     authenticate,
-    authorize([1, 2]), // Admin and Manager can create projects
+    authorize([1, 2]),
     createProject
 );
 
@@ -448,7 +476,7 @@ router.post('/',
  *   put:
  *     summary: Update a project
  *     description: Update an existing project by ID
- *     tags: [Projects]
+ *     tags: [ProjectMaster]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -458,7 +486,7 @@ router.post('/',
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ProjectUpdate'
+ *             $ref: '#/components/schemas/ProjectMasterUpdate'
  *     responses:
  *       200:
  *         description: Project updated successfully
@@ -472,7 +500,7 @@ router.post('/',
  *                 message:
  *                   type: string
  *                 data:
- *                   $ref: '#/components/schemas/Project'
+ *                   $ref: '#/components/schemas/ProjectMaster'
  *       400:
  *         description: Validation error
  *         content:
@@ -492,7 +520,7 @@ router.post('/',
  */
 router.put('/:id',
     authenticate,
-    authorize([1, 2]), // Admin and Manager can update
+    authorize([1, 2]), 
     updateProject
 );
 
@@ -501,8 +529,8 @@ router.put('/:id',
  * /api/masters/project/{id}:
  *   delete:
  *     summary: Delete a project (soft delete)
- *     description: Soft delete a project by setting IsActive to 0
- *     tags: [Projects]
+ *     description: Soft delete a project by setting Del_Flag to 1
+ *     tags: [ProjectMaster]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -536,10 +564,8 @@ router.put('/:id',
  */
 router.delete('/:id',
     authenticate,
-    authorize([1]), // Only Admin can delete
+    authorize([1]), 
     deleteProject
 );
-
-
 
 export default router;

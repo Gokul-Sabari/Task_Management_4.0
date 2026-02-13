@@ -2,255 +2,506 @@ import { DataTypes, Model, Optional } from 'sequelize';
 import { sequelize } from '../../../config/sequalizer';
 import { z } from 'zod';
 
-// Interface for Employee attributes
+const modelName = 'Employee_Master';
+
 export interface EmployeeAttributes {
     Emp_Id: number;
-    Branch: number;
-    fingerPrintEmpId: number;
-    Emp_Code: string;
-    Emp_Name: string;
-    Designation: number | string; 
-    DOB: Date;
-    DOJ: Date;
-    Department_ID: number;
-    Address_1: string;
-    Address_2?: string | null;
-    City: string;
-    Country: string;
-    Pincode: string;
-    Mobile_No: string;
-    Education?: string | null;
-    Fathers_Name?: string | null;
-    Mothers_Name?: string | null;
-    Spouse_Name?: string | null;
-    Sex: string;
-    Emp_Religion?: string | null;
-    Salary: number;
-    Total_Loan: number;
-    Salary_Advance: number;
-    Due_Loan: number;
-    User_Mgt_Id: number;
-    Entry_By: number;
-    Entry_Date: Date;
-    Department?: string | null;
-    Location?: string | null;
-    IsActive?: number;
+    Branch: number | null;
+    fingerPrintEmpId: string | null;
+    Emp_Code: string | null;
+    Emp_Name: string | null;
+    Designation: number | null;
+    DOB: Date | null;
+    DOJ: Date | null;
+    Department_ID: number | null;
+    Address_1: string | null;
+    Address_2: string | null;
+    City: string | null;
+    Country: string | null;
+    Pincode: string | null;
+    Mobile_No: string | null;
+    Education: string | null;
+    Fathers_Name: string | null;
+    Mothers_Name: string | null;
+    Spouse_Name: string | null;
+    Sex: string | null;
+    Emp_Religion: string | null;
+    Salary: number | null;
+    Total_Loan: number | null;
+    Salary_Advance: number | null;
+    Due_Loan: number | null;
+    User_Mgt_Id: number | null;
+    Entry_By: number | null;
+    Entry_Date: Date | null;
+    Department: string | null;
+    Location: string | null;
 }
 
-// Interface for creation attributes (optional ID)
-export interface EmployeeCreationAttributes extends Optional<EmployeeAttributes, 'Emp_Id'> {}
+type EmployeeCreationAttributes = Optional<EmployeeAttributes, 'Emp_Id'>;
 
-// Interface for update attributes (all optional)
-export interface EmployeeUpdateAttributes extends Partial<EmployeeAttributes> {}
-
-// Interface for query parameters
-export interface EmployeeQueryParams {
-    page: number;
-    limit: number;
-    search?: string;
-    branch?: string;
-    departmentId?: string;
-    designation?: string;
-    isActive?: string;
-    sortBy?: string;
-    sortOrder?: 'ASC' | 'DESC';
-}
-
-// Zod schemas for validation
-export const employeeIdSchema = z.object({
-    id: z.coerce.number().int().positive()
-});
-
-export const employeeCreateSchema = z.object({
-    Branch: z.coerce.number().int().min(1, "Branch is required"),
-    fingerPrintEmpId: z.coerce.number().int().min(0).optional(),
-    Emp_Code: z.string().min(1, "Employee Code is required").max(50),
-    Emp_Name: z.string().min(1, "Employee Name is required").max(255),
-    Designation: z.union([z.coerce.number().int(), z.string()]),
-    DOB: z.coerce.date(),
-    DOJ: z.coerce.date(),
-    Department_ID: z.coerce.number().int().min(1, "Department ID is required"),
-    Address_1: z.string().min(1, "Address 1 is required").max(255),
-    Address_2: z.string().max(255).optional().nullable(),
-    City: z.string().min(1, "City is required").max(100),
-    Country: z.string().min(1, "Country is required").max(100),
-    Pincode: z.string().min(1, "Pincode is required").max(20),
-    Mobile_No: z.string().min(10, "Valid mobile number is required").max(15),
-    Education: z.string().max(255).optional().nullable(),
-    Fathers_Name: z.string().max(255).optional().nullable(),
-    Mothers_Name: z.string().max(255).optional().nullable(),
-    Spouse_Name: z.string().max(255).optional().nullable(),
-    Sex: z.enum(['Male', 'Female', 'Other']),
-    Emp_Religion: z.string().max(100).optional().nullable(),
-    Salary: z.coerce.number().min(0, "Salary must be positive"),
-    Total_Loan: z.coerce.number().min(0, "Total loan must be positive").optional().default(0),
-    Salary_Advance: z.coerce.number().min(0, "Salary advance must be positive").optional().default(0),
-    Due_Loan: z.coerce.number().min(0, "Due loan must be positive").optional().default(0),
-    User_Mgt_Id: z.coerce.number().int().min(1, "User management ID is required"),
-    Entry_By: z.coerce.number().int().min(1, "Entry by is required"),
-    Department: z.string().max(100).optional().nullable(),
-    Location: z.string().max(100).optional().nullable()
-});
-
-export const employeeUpdateSchema = z.object({
-    Branch: z.coerce.number().int().min(1).optional(),
-    fingerPrintEmpId: z.coerce.number().int().min(0).optional(),
-    Emp_Code: z.string().min(1).max(50).optional(),
-    Emp_Name: z.string().min(1).max(255).optional(),
-    Designation: z.union([z.coerce.number().int(), z.string()]).optional(),
-    DOB: z.coerce.date().optional(),
-    DOJ: z.coerce.date().optional(),
-    Department_ID: z.coerce.number().int().min(1).optional(),
-    Address_1: z.string().min(1).max(255).optional(),
-    Address_2: z.string().max(255).optional().nullable(),
-    City: z.string().min(1).max(100).optional(),
-    Country: z.string().min(1).max(100).optional(),
-    Pincode: z.string().min(1).max(20).optional(),
-    Mobile_No: z.string().min(10).max(15).optional(),
-    Education: z.string().max(255).optional().nullable(),
-    Fathers_Name: z.string().max(255).optional().nullable(),
-    Mothers_Name: z.string().max(255).optional().nullable(),
-    Spouse_Name: z.string().max(255).optional().nullable(),
-    Sex: z.enum(['Male', 'Female', 'Other']).optional(),
-    Emp_Religion: z.string().max(100).optional().nullable(),
-    Salary: z.coerce.number().min(0).optional(),
-    Total_Loan: z.coerce.number().min(0).optional(),
-    Salary_Advance: z.coerce.number().min(0).optional(),
-    Due_Loan: z.coerce.number().min(0).optional(),
-    User_Mgt_Id: z.coerce.number().int().min(1).optional(),
-    IsActive: z.enum(['0', '1']).optional()
-});
-
-export const employeeQuerySchema = z.object({
-    page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-    search: z.string().optional(),
-    branch: z.string().optional(),
-    departmentId: z.string().optional(),
-    designation: z.string().optional(),
-    isActive: z.enum(['0', '1', 'all']).default('1'),
-    sortBy: z.enum(['Emp_Id', 'Emp_Code', 'Emp_Name', 'DOJ', 'Entry_Date']).default('Emp_Id'),
-    sortOrder: z.enum(['ASC', 'DESC']).default('ASC')
-});
-
-// Sequelize Model
-export class Employee_Master extends Model<EmployeeAttributes, EmployeeCreationAttributes> 
+export class Employee_Master
+    extends Model<EmployeeAttributes, EmployeeCreationAttributes>
     implements EmployeeAttributes {
     
-    public Emp_Id!: number;
-    public Branch!: number;
-    public fingerPrintEmpId!: number;
-    public Emp_Code!: string;
-    public Emp_Name!: string;
-    public Designation!: number | string;
-    public DOB!: Date;
-    public DOJ!: Date;
-    public Department_ID!: number;
-    public Address_1!: string;
-    public Address_2!: string | null;
-    public City!: string;
-    public Country!: string;
-    public Pincode!: string;
-    public Mobile_No!: string;
-    public Education!: string | null;
-    public Fathers_Name!: string | null;
-    public Mothers_Name!: string | null;
-    public Spouse_Name!: string | null;
-    public Sex!: string;
-    public Emp_Religion!: string | null;
-    public Salary!: number;
-    public Total_Loan!: number;
-    public Salary_Advance!: number;
-    public Due_Loan!: number;
-    public User_Mgt_Id!: number;
-    public Entry_By!: number;
-    public Entry_Date!: Date;
-    public Department!: string | null;
-    public Location!: string | null;
-    public IsActive!: number;
-
-    // Timestamps
-    public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
+    declare Emp_Id: number;
+    declare Branch: number | null;
+    declare fingerPrintEmpId: string | null;
+    declare Emp_Code: string | null;
+    declare Emp_Name: string | null;
+    declare Designation: number | null;
+    declare DOB: Date | null;
+    declare DOJ: Date | null;
+    declare Department_ID: number | null;
+    declare Address_1: string | null;
+    declare Address_2: string | null;
+    declare City: string | null;
+    declare Country: string | null;
+    declare Pincode: string | null;
+    declare Mobile_No: string | null;
+    declare Education: string | null;
+    declare Fathers_Name: string | null;
+    declare Mothers_Name: string | null;
+    declare Spouse_Name: string | null;
+    declare Sex: string | null;
+    declare Emp_Religion: string | null;
+    declare Salary: number | null;
+    declare Total_Loan: number | null;
+    declare Salary_Advance: number | null;
+    declare Due_Loan: number | null;
+    declare User_Mgt_Id: number | null;
+    declare Entry_By: number | null;
+    declare Entry_Date: Date | null;
+    declare Department: string | null;
+    declare Location: string | null;
 }
 
-// Model initialization
+//------------------------------ CREATE ---------------------------------------------------------------//
+// Employee Zod schemas
+export const employeeCreateSchema = z.object({
+    Branch: z.coerce.number()
+        .int()
+        .positive('Branch ID must be positive')
+        .nullable()
+        .optional(),
+    fingerPrintEmpId: z.string()
+        .max(100, 'Fingerprint Employee ID cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Emp_Code: z.string()
+        .min(1, 'Employee Code is required')
+        .max(50, 'Employee Code cannot exceed 50 characters')
+        .trim(),
+    Emp_Name: z.string()
+        .min(1, 'Employee Name is required')
+        .max(255, 'Employee Name cannot exceed 255 characters')
+        .trim(),
+    Designation: z.coerce.number()
+        .int()
+        .positive('Designation ID must be positive')
+        .nullable()
+        .optional(),
+    DOB: z.coerce.date()
+        .nullable()
+        .optional()
+        .refine(date => !date || date <= new Date(), {
+            message: 'Date of Birth cannot be in the future'
+        }),
+    DOJ: z.coerce.date()
+        .nullable()
+        .optional()
+        .refine(date => !date || date <= new Date(), {
+            message: 'Date of Joining cannot be in the future'
+        }),
+    Department_ID: z.coerce.number()
+        .int()
+        .positive('Department ID must be positive')
+        .nullable()
+        .optional(),
+    Address_1: z.string()
+        .max(500, 'Address 1 cannot exceed 500 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Address_2: z.string()
+        .max(500, 'Address 2 cannot exceed 500 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    City: z.string()
+        .max(100, 'City cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Country: z.string()
+        .max(100, 'Country cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Pincode: z.string()
+        .max(10, 'Pincode cannot exceed 10 characters')
+        .regex(/^\d{6}$/, 'Pincode must be exactly 6 digits')
+        .trim()
+        .nullable()
+        .optional(),
+    Mobile_No: z.string()
+        .max(15, 'Mobile number cannot exceed 15 characters')
+        .regex(/^(\+91[\-\s]?)?[6789]\d{9}$/, {
+            message: 'Invalid Indian mobile number. Must be 10 digits starting with 6,7,8, or 9'
+        })
+        .trim()
+        .nullable()
+        .optional(),
+    Education: z.string()
+        .max(255, 'Education cannot exceed 255 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Fathers_Name: z.string()
+        .max(255, "Father's Name cannot exceed 255 characters")
+        .trim()
+        .nullable()
+        .optional(),
+    Mothers_Name: z.string()
+        .max(255, "Mother's Name cannot exceed 255 characters")
+        .trim()
+        .nullable()
+        .optional(),
+    Spouse_Name: z.string()
+        .max(255, "Spouse's Name cannot exceed 255 characters")
+        .trim()
+        .nullable()
+        .optional(),
+    Sex: z.enum(['Male', 'Female', 'Other'])
+        .nullable()
+        .optional(),
+    Emp_Religion: z.string()
+        .max(100, 'Religion cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Salary: z.coerce.number()
+        .min(0, 'Salary cannot be negative')
+        .nullable()
+        .optional(),
+    Total_Loan: z.coerce.number()
+        .min(0, 'Total Loan cannot be negative')
+        .nullable()
+        .optional()
+        .default(0),
+    Salary_Advance: z.coerce.number()
+        .min(0, 'Salary Advance cannot be negative')
+        .nullable()
+        .optional()
+        .default(0),
+    Due_Loan: z.coerce.number()
+        .min(0, 'Due Loan cannot be negative')
+        .nullable()
+        .optional()
+        .default(0),
+    User_Mgt_Id: z.coerce.number()
+        .int()
+        .positive('User Management ID must be positive')
+        .nullable()
+        .optional(),
+    Entry_By: z.coerce.number()
+        .int()
+        .positive('Entry By must be positive')
+        .nullable()
+        .optional(),
+    Entry_Date: z.coerce.date()
+        .default(() => new Date()),
+    Department: z.string()
+        .max(100, 'Department cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Location: z.string()
+        .max(100, 'Location cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional()
+});
+
+//------------------------------------ UPDATE ------------------------------------------------------------------//
+
+export const employeeUpdateSchema = z.object({
+    Branch: z.coerce.number()
+        .int()
+        .positive('Branch ID must be positive')
+        .nullable()
+        .optional(),
+    fingerPrintEmpId: z.string()
+        .max(100, 'Fingerprint Employee ID cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Emp_Code: z.string()
+        .max(50, 'Employee Code cannot exceed 50 characters')
+        .trim()
+        .optional(),
+    Emp_Name: z.string()
+        .max(255, 'Employee Name cannot exceed 255 characters')
+        .trim()
+        .optional(),
+    Designation: z.coerce.number()
+        .int()
+        .positive('Designation ID must be positive')
+        .nullable()
+        .optional(),
+    DOB: z.coerce.date()
+        .nullable()
+        .optional()
+        .refine(date => !date || date <= new Date(), {
+            message: 'Date of Birth cannot be in the future'
+        }),
+    DOJ: z.coerce.date()
+        .nullable()
+        .optional()
+        .refine(date => !date || date <= new Date(), {
+            message: 'Date of Joining cannot be in the future'
+        }),
+    Department_ID: z.coerce.number()
+        .int()
+        .positive('Department ID must be positive')
+        .nullable()
+        .optional(),
+    Address_1: z.string()
+        .max(500, 'Address 1 cannot exceed 500 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Address_2: z.string()
+        .max(500, 'Address 2 cannot exceed 500 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    City: z.string()
+        .max(100, 'City cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Country: z.string()
+        .max(100, 'Country cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Pincode: z.string()
+        .max(10, 'Pincode cannot exceed 10 characters')
+        .regex(/^\d{6}$/, 'Pincode must be exactly 6 digits')
+        .trim()
+        .nullable()
+        .optional(),
+    Mobile_No: z.string()
+        .max(15, 'Mobile number cannot exceed 15 characters')
+        .regex(/^(\+91[\-\s]?)?[6789]\d{9}$/, {
+            message: 'Invalid Indian mobile number. Must be 10 digits starting with 6,7,8, or 9'
+        })
+        .trim()
+        .nullable()
+        .optional(),
+    Education: z.string()
+        .max(255, 'Education cannot exceed 255 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Fathers_Name: z.string()
+        .max(255, "Father's Name cannot exceed 255 characters")
+        .trim()
+        .nullable()
+        .optional(),
+    Mothers_Name: z.string()
+        .max(255, "Mother's Name cannot exceed 255 characters")
+        .trim()
+        .nullable()
+        .optional(),
+    Spouse_Name: z.string()
+        .max(255, "Spouse's Name cannot exceed 255 characters")
+        .trim()
+        .nullable()
+        .optional(),
+    Sex: z.enum(['Male', 'Female', 'Other'])
+        .nullable()
+        .optional(),
+    Emp_Religion: z.string()
+        .max(100, 'Religion cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Salary: z.coerce.number()
+        .min(0, 'Salary cannot be negative')
+        .nullable()
+        .optional(),
+    Total_Loan: z.coerce.number()
+        .min(0, 'Total Loan cannot be negative')
+        .nullable()
+        .optional(),
+    Salary_Advance: z.coerce.number()
+        .min(0, 'Salary Advance cannot be negative')
+        .nullable()
+        .optional(),
+    Due_Loan: z.coerce.number()
+        .min(0, 'Due Loan cannot be negative')
+        .nullable()
+        .optional(),
+    User_Mgt_Id: z.coerce.number()
+        .int()
+        .positive('User Management ID must be positive')
+        .nullable()
+        .optional(),
+    Entry_By: z.coerce.number()
+        .int()
+        .positive('Entry By must be positive')
+        .nullable()
+        .optional(),
+    Department: z.string()
+        .max(100, 'Department cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional(),
+    Location: z.string()
+        .max(100, 'Location cannot exceed 100 characters')
+        .trim()
+        .nullable()
+        .optional()
+});
+
+//--------------------------------------------------------------------------------------------------------------//
+
+export const employeeQuerySchema = z.object({
+    branch: z.coerce.number()
+        .int()
+        .positive('Branch ID must be positive')
+        .nullable()
+        .optional(),
+    departmentId: z.coerce.number()
+        .int()
+        .positive('Department ID must be positive')
+        .nullable()
+        .optional(),
+    designation: z.coerce.number()
+        .int()
+        .positive('Designation ID must be positive')
+        .nullable()
+        .optional(),
+    search: z.string()
+        .max(100, 'Search term too long')
+        .trim()
+        .optional(),
+    sortBy: z.enum([
+        'Emp_Id',
+        'Emp_Code',
+        'Emp_Name',
+        'DOJ',
+        'Department_ID',
+        'Salary'
+    ])
+        .default('Emp_Id'),
+    sortOrder: z.enum(['ASC', 'DESC'])
+        .default('ASC')
+});
+
+
+//-------------------------------------------------------------------------------------------------------//
+export const employeeIdSchema = z.object({
+    id: z.coerce.number()
+        .int()
+        .positive('Valid Employee ID is required')
+});
+
+
+//-----------------------------------------------------------------------------------------------------------//
+export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;
+export type EmployeeUpdateInput = z.infer<typeof employeeUpdateSchema>;
+export type EmployeeQueryParams = z.infer<typeof employeeQuerySchema>;
+
+// Initialize the Employee model
 Employee_Master.init(
     {
         Emp_Id: {
-            type: DataTypes.INTEGER,
-            primaryKey: true,
+            type: DataTypes.BIGINT,
             autoIncrement: true,
+            primaryKey: true,
             field: 'Emp_Id'
         },
         Branch: {
             type: DataTypes.INTEGER,
-            allowNull: false,
+            allowNull: true,
             field: 'Branch'
         },
         fingerPrintEmpId: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(100),
             allowNull: true,
             field: 'fingerPrintEmpId'
         },
         Emp_Code: {
             type: DataTypes.STRING(50),
-            allowNull: false,
-            field: 'Emp_Code'
+            allowNull: true,
+            field: 'Emp_Code',
+            validate: {
+                notEmpty: {
+                    msg: 'Employee Code is required'
+                }
+            }
         },
         Emp_Name: {
             type: DataTypes.STRING(255),
-            allowNull: false,
-            field: 'Emp_Name'
+            allowNull: true,
+            field: 'Emp_Name',
+            validate: {
+                notEmpty: {
+                    msg: 'Employee Name is required'
+                }
+            }
         },
         Designation: {
-            type: DataTypes.STRING(100), // Storing as string, but can be number if it's an ID
-            allowNull: false,
+            type: DataTypes.INTEGER,
+            allowNull: true,
             field: 'Designation'
         },
         DOB: {
             type: DataTypes.DATE,
-            allowNull: false,
+            allowNull: true,
             field: 'DOB'
         },
         DOJ: {
             type: DataTypes.DATE,
-            allowNull: false,
+            allowNull: true,
             field: 'DOJ'
         },
         Department_ID: {
             type: DataTypes.INTEGER,
-            allowNull: false,
+            allowNull: true,
             field: 'Department_ID'
         },
         Address_1: {
-            type: DataTypes.STRING(255),
-            allowNull: false,
+            type: DataTypes.STRING(500),
+            allowNull: true,
             field: 'Address_1'
         },
         Address_2: {
-            type: DataTypes.STRING(255),
+            type: DataTypes.STRING(500),
             allowNull: true,
             field: 'Address_2'
         },
         City: {
             type: DataTypes.STRING(100),
-            allowNull: false,
+            allowNull: true,
             field: 'City'
         },
         Country: {
             type: DataTypes.STRING(100),
-            allowNull: false,
+            allowNull: true,
             field: 'Country'
         },
         Pincode: {
-            type: DataTypes.STRING(20),
-            allowNull: false,
+            type: DataTypes.STRING(10),
+            allowNull: true,
             field: 'Pincode'
         },
         Mobile_No: {
             type: DataTypes.STRING(15),
-            allowNull: false,
+            allowNull: true,
             field: 'Mobile_No'
         },
         Education: {
@@ -275,7 +526,7 @@ Employee_Master.init(
         },
         Sex: {
             type: DataTypes.STRING(10),
-            allowNull: false,
+            allowNull: true,
             field: 'Sex'
         },
         Emp_Religion: {
@@ -284,41 +535,48 @@ Employee_Master.init(
             field: 'Emp_Religion'
         },
         Salary: {
-            type: DataTypes.DECIMAL(10, 2),
-            allowNull: false,
-            field: 'Salary'
+            type: DataTypes.DECIMAL(15, 2),
+            allowNull: true,
+            field: 'Salary',
+            validate: {
+                min: {
+                    args: [0],
+                    msg: 'Salary cannot be negative'
+                }
+            }
         },
         Total_Loan: {
-            type: DataTypes.DECIMAL(10, 2),
+            type: DataTypes.DECIMAL(15, 2),
             allowNull: true,
-            field: 'Total_Loan',
-            defaultValue: 0
+            defaultValue: 0,
+            field: 'Total_Loan'
         },
         Salary_Advance: {
-            type: DataTypes.DECIMAL(10, 2),
+            type: DataTypes.DECIMAL(15, 2),
             allowNull: true,
-            field: 'Salary_Advance',
-            defaultValue: 0
+            defaultValue: 0,
+            field: 'Salary_Advance'
         },
         Due_Loan: {
-            type: DataTypes.DECIMAL(10, 2),
+            type: DataTypes.DECIMAL(15, 2),
             allowNull: true,
-            field: 'Due_Loan',
-            defaultValue: 0
+            defaultValue: 0,
+            field: 'Due_Loan'
         },
         User_Mgt_Id: {
             type: DataTypes.INTEGER,
-            allowNull: false,
+            allowNull: true,
             field: 'User_Mgt_Id'
         },
         Entry_By: {
             type: DataTypes.INTEGER,
-            allowNull: false,
+            allowNull: true,
             field: 'Entry_By'
         },
         Entry_Date: {
             type: DataTypes.DATE,
-            allowNull: false,
+            allowNull: true,
+            defaultValue: DataTypes.NOW,
             field: 'Entry_Date'
         },
         Department: {
@@ -330,41 +588,52 @@ Employee_Master.init(
             type: DataTypes.STRING(100),
             allowNull: true,
             field: 'Location'
-        },
-        IsActive: {
-            type: DataTypes.INTEGER,
-            allowNull: true,
-            field: 'IsActive',
-            defaultValue: 1
         }
     },
     {
         sequelize,
         tableName: 'tbl_Employee_Master',
-        timestamps: false, // Disable createdAt and updatedAt since you have Entry_Date
-        indexes: [
-            {
-                unique: true,
-                fields: ['Emp_Code']
-            },
-            {
-                fields: ['Emp_Name']
-            },
-            {
-                fields: ['Branch']
-            },
-            {
-                fields: ['Department_ID']
-            },
-            {
-                fields: ['IsActive']
-            }
-        ]
+        modelName: modelName,
+        timestamps: false,
+        freezeTableName: true
     }
 );
 
-// If you need associations (for Department or Branch)
-// You can add them here if you have those models
+// Optional: Add scopes if needed
+Employee_Master.addScope('active', {
+    where: {
+        // Add active condition if you have a status field
+    }
+});
 
-export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;
-export type EmployeeUpdateInput = z.infer<typeof employeeUpdateSchema>;
+Employee_Master.addScope('byBranch', (branchId: number) => ({
+    where: { Branch: branchId }
+}));
+
+Employee_Master.addScope('byDepartment', (departmentId: number) => ({
+    where: { Department_ID: departmentId }
+}));
+
+export const employeeAccessKeys = {
+    id: `${modelName}.Emp_Id`,
+    Emp_Code: `${modelName}.Emp_Code`,
+    Emp_Name: `${modelName}.Emp_Name`,
+    Designation: `${modelName}.Designation`,
+    DOJ: `${modelName}.DOJ`,
+    Department_ID: `${modelName}.Department_ID`,
+    Branch: `${modelName}.Branch`,
+    Salary: `${modelName}.Salary`
+};
+
+// Optional: Add toJSON method if needed
+Employee_Master.prototype.toJSON = function () {
+    const values = Object.assign({}, this.get());
+    
+    // Remove sensitive information if needed
+    // delete values.Salary; // Uncomment if salary should be hidden
+    // delete values.Total_Loan; // Uncomment if loan info should be hidden
+    
+    return values;
+};
+
+export default Employee_Master;

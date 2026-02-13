@@ -7,14 +7,14 @@ export interface TaskAttributes {
   Task_Id: number;
   Task_Name: string;
   Task_Desc?: string | null;
-  Company_id?: number | null;
-  Task_Group_Id: number;
+ Company_Id?: number | null;
+  Task_Type_Id: number;
   Entry_By: number;
   Entry_Date: Date;
   Update_By?: number | null;
   Update_Date?: Date | null;
   Project_Id?: number | null;
-  // Task_Type_Id?: number | null; // Add this if your model has Task_Type_Id
+  
 }
 
 export type TaskCreationAttributes = Optional<TaskAttributes, 'Task_Id'>;
@@ -23,19 +23,19 @@ export type TaskCreationAttributes = Optional<TaskAttributes, 'Task_Id'>;
 export const taskCreateSchema = z.object({
   Task_Name: z.string().min(1, 'Task name is required').max(255, 'Task name must be 255 characters or less'),
   Task_Desc: z.string().optional().nullable(),
-  Company_id: z.number().optional().nullable(),
-  Task_Group_Id: z.number().min(1, 'Valid task group ID is required'),
+  Company_Id: z.number().optional().nullable(),
+ Task_Type_Id: z.number().min(1, 'Valid task group ID is required'),
   Project_Id: z.number().optional().nullable(),
-  // Task_Type_Id: z.number().optional().nullable(), // Add this if needed
+  
 });
 
 export const taskUpdateSchema = z.object({
   Task_Name: z.string().min(1, 'Task name is required').max(255, 'Task name must be 255 characters or less').optional(),
   Task_Desc: z.string().optional().nullable(),
-  Company_id: z.number().optional().nullable(),
-  Task_Group_Id: z.number().min(1, 'Valid task group ID is required').optional(),
+  Company_Id: z.number().optional().nullable(),
+  Task_Type_Id: z.number().min(1, 'Valid task group ID is required').optional(),
   Project_Id: z.number().optional().nullable(),
-  // Task_Type_Id: z.number().optional().nullable(), // Add this if needed
+  
 });
 
 export const taskIdSchema = z.object({
@@ -45,9 +45,9 @@ export const taskIdSchema = z.object({
 export const taskQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20).optional(),
-  company_id: z.coerce.number().int().positive().nullable().optional(),
-  task_group_id: z.coerce.number().int().positive().optional(),
-  project_id: z.coerce.number().int().positive().nullable().optional(),
+  Company_Id: z.coerce.number().int().positive().nullable().optional(),
+  Task_Type_Id: z.coerce.number().int().positive().optional(),
+  Project_Id: z.coerce.number().int().positive().nullable().optional(),
   search: z.string().optional(),
   sortBy: z.enum(['Task_Id', 'Task_Name', 'Entry_Date', 'Update_Date', 'Task_Type_Id']).default('Task_Id').optional(),
   sortOrder: z.enum(['ASC', 'DESC']).default('DESC').optional(),
@@ -64,8 +64,8 @@ export class Task extends Model<TaskAttributes, TaskCreationAttributes>
   public Task_Id!: number;
   public Task_Name!: string;
   public Task_Desc!: string | null;
-  public Company_id!: number | null;
-  public Task_Group_Id!: number;
+  public Company_Id!: number | null;
+  public Task_Type_Id!: number;
   public Entry_By!: number;
   public Entry_Date!: Date;
   public Update_By!: number | null;
@@ -89,11 +89,11 @@ Task.init(
       type: DataTypes.TEXT,
       allowNull: true
     },
-    Company_id: {
+    Company_Id: {
       type: DataTypes.INTEGER,
       allowNull: true
     },
-    Task_Group_Id: {
+    Task_Type_Id: {
       type: DataTypes.INTEGER,
       allowNull: false
     },

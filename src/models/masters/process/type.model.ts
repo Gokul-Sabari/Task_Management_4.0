@@ -1,4 +1,4 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Model, Optional, QueryTypes } from 'sequelize'; // Import QueryTypes
 import { sequelize } from '../../../config/sequalizer';
 import { z } from 'zod';
 
@@ -9,7 +9,7 @@ export interface ProcessMasterAttributes {
     Process_Name: string;
 }
 
-type ProcessMasterCreationAttributes = Optional<ProcessMasterAttributes, 'Id'>;
+type ProcessMasterCreationAttributes = ProcessMasterAttributes; // BOTH fields required if no IDENTITY
 
 export class Process_Master
     extends Model<ProcessMasterAttributes, ProcessMasterCreationAttributes>
@@ -17,32 +17,39 @@ export class Process_Master
 
     declare Id: number;
     declare Process_Name: string;
- 
+
+    // Add this method to get next available ID
+    static async getNextId(): Promise<number> {
+        try {
+            const result = await sequelize.query(
+                'SELECT ISNULL(MAX(Id), 0) + 1 as nextId FROM tbl_Process_Master',
+                { 
+                    type: QueryTypes.SELECT, // Use imported QueryTypes
+                    raw: true 
+                }
+            ) as any[];
+            
+            return result[0]?.nextId || 1;
+        } catch (error) {
+            console.error('Error getting next ID:', error);
+            throw error;
+        }
+    }
 }
 
-// CORRECTED Zod schemas
-export const  processMasterCreateSchema= z.object({
+// Zod schemas - For API request validation (client doesn't send Id)
+export const processMasterCreateSchema = z.object({
     Process_Name: z.string()
-        .min(1, 'Process_Name is required')
-        .max(250, 'Process_Name cannot exceed 250 characters')
-        .trim(),
-    Id: z.coerce.number()
-        .int()
-        .min(0)
-        .max(1)
-        .default(0),
+        .min(1, 'Process name is required')
+        .max(250, 'Process name cannot exceed 250 characters')
+        .trim()
 });
 
 export const processMasterUpdateSchema = z.object({
-     Process_Name: z.string()
-        .min(1, 'Process_Name is required')
-        .max(250, 'Process_Name cannot exceed 250 characters')
-        .trim(),
-    Id: z.coerce.number()
-        .int()
-        .min(0)
-        .max(1)
-        .default(0),
+    Process_Name: z.string()
+        .min(1, 'Process name is required')
+        .max(250, 'Process name cannot exceed 250 characters')
+        .trim()
 });
 
 export const processMasterQuerySchema = z.object({
@@ -56,19 +63,14 @@ export const processMasterQuerySchema = z.object({
         .max(100)
         .default(20),
     search: z.string().optional(),
-    Id: z.coerce.number()
-        .int()
-        .positive()
-        .optional(),
-    sortBy: z.enum(['Id',])
+    sortBy: z.enum(['Id', 'Process_Name'])
         .default('Id'),
     sortOrder: z.enum(['ASC', 'DESC'])
         .default('ASC')
 });
- 
 
 export const processMasterIdSchema = z.object({
-    Id: z.coerce.number()
+    id: z.coerce.number()
         .int()
         .positive('Valid ID is required')
 });
@@ -82,9 +84,10 @@ Process_Master.init(
     {
         Id: {
             type: DataTypes.BIGINT,
-            autoIncrement: true,
             primaryKey: true,
-            field: 'Id'
+            field: 'Id',
+            allowNull: false,
+            autoIncrement: true // Keep this true for Sequelize behavior
         },
         Process_Name: {
             type: DataTypes.STRING(250),
@@ -93,7 +96,7 @@ Process_Master.init(
             validate: {
                 notEmpty: true
             }
-        },
+        }
     },
     {
         sequelize,
@@ -101,15 +104,20 @@ Process_Master.init(
         modelName: modelName,
         timestamps: false,
         freezeTableName: true,
-        defaultScope: {
-           
-            attributes: { exclude: [] }
+        // Add this for MSSQL without IDENTITY
+        hooks: {
+            beforeCreate: async (process: Process_Master) => {
+                // Only generate ID if not provided
+                if (!process.Id) {
+                    const nextId = await Process_Master.getNextId();
+                    process.Id = nextId;
+                }
+            }
         }
     }
 );
 
-export const taskTypeAccKey = {
+export const processMasterAccKey = {
     Id: `${modelName}.Id`,
-    Process_Name: `${modelName}.Process_Name`,
-   
+    Process_Name: `${modelName}.Process_Name`
 };

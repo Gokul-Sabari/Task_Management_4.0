@@ -3,18 +3,17 @@ import { Op } from 'sequelize';
 import { ZodError } from 'zod';
 
 import {
-    processMasterCreateSchema,
-    processMasterUpdateSchema,
-    processMasterIdSchema,
-    processMasterQuerySchema,
-    ProcessMasterCreateInput,
-    ProcessMasterUpdateInput,
-    ProcessMasterQueryParams,
-    Process_Master
-} from '../../../models/masters/process/type.model';
+    leaveTypeCreateSchema,
+    leaveTypeUpdateSchema,
+    leaveTypeIdSchema,
+    leaveTypeQuerySchema,
+    LeaveTypeCreateInput,
+    LeaveTypeUpdateInput,
+    LeaveTypeQueryParams,
+    LeaveType
+} from '../../../models/masters/Leave type/leaveType.model';
 
 /* ================= ZOD VALIDATION HELPER ================= */
-
 const validateWithZod = <T>(schema: any, data: any) => {
     try {
         return { success: true, data: schema.parse(data) as T };
@@ -33,11 +32,10 @@ const validateWithZod = <T>(schema: any, data: any) => {
 };
 
 /* ================= GET ALL ================= */
-
-export const getAllProcessMaster = async (req: Request, res: Response) => {
+export const getAllLeaveTypes = async (req: Request, res: Response) => {
     try {
-        const validation = validateWithZod<ProcessMasterQueryParams>(
-            processMasterQuerySchema,
+        const validation = validateWithZod<LeaveTypeQueryParams>(
+            leaveTypeQuerySchema,
             req.query
         );
 
@@ -61,14 +59,14 @@ export const getAllProcessMaster = async (req: Request, res: Response) => {
 
         // Add search filter if provided
         if (search && search.trim()) {
-            where.Process_Name = { 
+            where.LeaveType = { 
                 [Op.like]: `%${search}%` 
             };
         }
 
         const offset = (page - 1) * limit;
 
-        const { rows, count } = await Process_Master.findAndCountAll({
+        const { rows, count } = await LeaveType.findAndCountAll({
             where,
             limit,
             offset,
@@ -79,7 +77,7 @@ export const getAllProcessMaster = async (req: Request, res: Response) => {
 
         return res.status(200).json({
             success: true,
-            message: 'Process masters retrieved successfully',
+            message: 'Leave types retrieved successfully',
             data: rows,
             pagination: {
                 totalRecords: count,
@@ -102,11 +100,10 @@ export const getAllProcessMaster = async (req: Request, res: Response) => {
 };
 
 /* ================= GET BY ID ================= */
-
-export const getProcessMasterById = async (req: Request, res: Response) => {
+export const getLeaveTypeById = async (req: Request, res: Response) => {
     try {
         const validation = validateWithZod<{ id: number }>(
-            processMasterIdSchema,
+            leaveTypeIdSchema,
             req.params
         );
 
@@ -117,18 +114,18 @@ export const getProcessMasterById = async (req: Request, res: Response) => {
             });
         }
 
-        const process = await Process_Master.findByPk(validation.data!.id);
-        if (!process) {
+        const leaveType = await LeaveType.findByPk(validation.data!.id);
+        if (!leaveType) {
             return res.status(404).json({
                 success: false,
-                message: 'Process not found'
+                message: 'Leave type not found'
             });
         }
 
         return res.status(200).json({
             success: true,
-            message: 'Process master retrieved successfully',
-            data: process
+            message: 'Leave type retrieved successfully',
+            data: leaveType
         });
 
     } catch (e: any) {
@@ -142,13 +139,12 @@ export const getProcessMasterById = async (req: Request, res: Response) => {
 };
 
 /* ================= CREATE ================= */
-
-export const createProcessMaster = async (req: Request, res: Response) => {
+export const createLeaveType = async (req: Request, res: Response) => {
     try {
         console.log('Request Body:', req.body);
         
-        const validation = validateWithZod<ProcessMasterCreateInput>(
-            processMasterCreateSchema,
+        const validation = validateWithZod<LeaveTypeCreateInput>(
+            leaveTypeCreateSchema,
             req.body
         );
 
@@ -160,32 +156,32 @@ export const createProcessMaster = async (req: Request, res: Response) => {
             });
         }
 
-        const { Process_Name } = validation.data!;
+        const { LeaveType: leaveTypeName } = validation.data!;
 
-        // Check for duplicate process name
-        const exists = await Process_Master.findOne({
+        // Check for duplicate leave type name
+        const exists = await LeaveType.findOne({
             where: {
-                Process_Name: Process_Name
+                LeaveType: leaveTypeName
             }
         });
 
         if (exists) {
             return res.status(409).json({
                 success: false,
-                message: 'Process name already exists'
+                message: 'Leave type already exists'
             });
         }
 
-        // Create the process - ID will be auto-generated by hook
-        const process = await Process_Master.create({
-            Process_Name: Process_Name,
+        // Create the leave type
+        const leaveType = await LeaveType.create({
+            LeaveType: leaveTypeName,
             Id: 0
         });
 
         return res.status(201).json({
             success: true,
-            message: 'Process created successfully',
-            data: process
+            message: 'Leave type created successfully',
+            data: leaveType
         });
 
     } catch (e: any) {
@@ -199,11 +195,11 @@ export const createProcessMaster = async (req: Request, res: Response) => {
         
         // Handle specific database errors
         if (e.name === 'SequelizeDatabaseError') {
-            if (e.parent && e.parent.number === 515) { // Cannot insert NULL error
+            if (e.parent && e.parent.number === 515) {
                 return res.status(500).json({
                     success: false,
                     message: 'Database error: ID column issue. Please ensure table has proper IDENTITY setup.',
-                    suggestion: 'Contact database administrator to run: ALTER TABLE tbl_Process_Master ALTER COLUMN Id BIGINT IDENTITY(1,1) NOT NULL'
+                    suggestion: 'Contact database administrator to run: ALTER TABLE tbl_LeaveType ALTER COLUMN Id BIGINT IDENTITY(1,1) NOT NULL'
                 });
             }
             
@@ -235,12 +231,11 @@ export const createProcessMaster = async (req: Request, res: Response) => {
 };
 
 /* ================= UPDATE ================= */
-
-export const updateProcessMaster = async (req: Request, res: Response) => {
+export const updateLeaveType = async (req: Request, res: Response) => {
     try {
         // Validate ID parameter
         const idValidation = validateWithZod<{ id: number }>(
-            processMasterIdSchema,
+            leaveTypeIdSchema,
             req.params
         );
 
@@ -252,8 +247,8 @@ export const updateProcessMaster = async (req: Request, res: Response) => {
         }
 
         // Validate request body
-        const bodyValidation = validateWithZod<ProcessMasterUpdateInput>(
-            processMasterUpdateSchema,
+        const bodyValidation = validateWithZod<LeaveTypeUpdateInput>(
+            leaveTypeUpdateSchema,
             req.body
         );
 
@@ -265,44 +260,44 @@ export const updateProcessMaster = async (req: Request, res: Response) => {
             });
         }
 
-        // Find the process
-        const process = await Process_Master.findByPk(idValidation.data!.id);
-        if (!process) {
+        // Find the leave type
+        const leaveType = await LeaveType.findByPk(idValidation.data!.id);
+        if (!leaveType) {
             return res.status(404).json({
                 success: false,
-                message: 'Process not found'
+                message: 'Leave type not found'
             });
         }
 
         // Check for duplicate name (excluding current record)
-        if (bodyValidation.data!.Process_Name) {
-            const duplicate = await Process_Master.findOne({
+        if (bodyValidation.data!.LeaveType) {
+            const duplicate = await LeaveType.findOne({
                 where: {
-                    Process_Name: bodyValidation.data!.Process_Name,
-                    Id: { [Op.ne]: process.Id }
+                    LeaveType: bodyValidation.data!.LeaveType,
+                    Id: { [Op.ne]: leaveType.Id }
                 }
             });
 
             if (duplicate) {
                 return res.status(409).json({
                     success: false,
-                    message: 'Process name already exists'
+                    message: 'Leave type name already exists'
                 });
             }
         }
 
-        // Update the process
-        await process.update({
-            Process_Name: bodyValidation.data!.Process_Name
+        // Update the leave type
+        await leaveType.update({
+            LeaveType: bodyValidation.data!.LeaveType
         });
         
         // Fetch updated record
-        const updatedProcess = await Process_Master.findByPk(process.Id);
+        const updatedLeaveType = await LeaveType.findByPk(leaveType.Id);
 
         return res.status(200).json({
             success: true,
-            message: 'Process updated successfully',
-            data: updatedProcess
+            message: 'Leave type updated successfully',
+            data: updatedLeaveType
         });
 
     } catch (e: any) {
@@ -325,11 +320,10 @@ export const updateProcessMaster = async (req: Request, res: Response) => {
 };
 
 /* ================= DELETE ================= */
-
-export const deleteProcessMaster = async (req: Request, res: Response) => {
+export const deleteLeaveType = async (req: Request, res: Response) => {
     try {
         const validation = validateWithZod<{ id: number }>(
-            processMasterIdSchema,
+            leaveTypeIdSchema,
             req.params
         );
 
@@ -340,20 +334,20 @@ export const deleteProcessMaster = async (req: Request, res: Response) => {
             });
         }
 
-        const process = await Process_Master.findByPk(validation.data!.id);
-        if (!process) {
+        const leaveType = await LeaveType.findByPk(validation.data!.id);
+        if (!leaveType) {
             return res.status(404).json({
                 success: false,
-                message: 'Process not found'
+                message: 'Leave type not found'
             });
         }
 
         // Hard delete (permanent removal)
-        await process.destroy();
+        await leaveType.destroy();
         
         return res.status(200).json({
             success: true,
-            message: 'Process deleted successfully'
+            message: 'Leave type deleted successfully'
         });
 
     } catch (e: any) {
@@ -367,6 +361,33 @@ export const deleteProcessMaster = async (req: Request, res: Response) => {
             });
         }
         
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+            error: process.env.NODE_ENV === 'development' ? e.message : undefined
+        });
+    }
+};
+
+/* ================= DROPDOWN ================= */
+export const getLeaveTypeDropdown = async (req: Request, res: Response) => {
+    try {
+        const leaveTypes = await LeaveType.findAll({
+            attributes: [
+                ['Id', 'value'],
+                ['LeaveType', 'label']
+            ],
+            order: [['LeaveType', 'ASC']]
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Leave types for dropdown retrieved successfully',
+            data: leaveTypes
+        });
+
+    } catch (e: any) {
+        console.error('Dropdown Error:', e);
         return res.status(500).json({
             success: false,
             message: 'Internal server error',

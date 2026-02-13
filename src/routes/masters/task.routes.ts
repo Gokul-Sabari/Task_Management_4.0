@@ -43,7 +43,7 @@ const router = express.Router();
  *           type: string
  *           nullable: true
  *           example: "SMT EXPENSES CHECKING"
- *         Company_id:
+ *         Company_Id:
  *           type: integer
  *           nullable: true
  *           example: null
@@ -84,7 +84,7 @@ const router = express.Router();
  *         Task_Desc:
  *           type: string
  *           nullable: true
- *         Company_id:
+ *        Company_Id:
  *           type: integer
  *           nullable: true
  *         Task_Group_Id:
@@ -94,26 +94,7 @@ const router = express.Router();
  *           type: integer
  *           nullable: true
  * 
- *     TaskUpdate:
- *       type: object
- *       properties:
- *         Task_Name:
- *           type: string
- *           maxLength: 255
- *           nullable: true
- *         Task_Desc:
- *           type: string
- *           nullable: true
- *         Company_id:
- *           type: integer
- *           nullable: true
- *         Task_Group_Id:
- *           type: integer
- *           nullable: true
- *         Project_Id:
- *           type: integer
- *           nullable: true
- * 
+ 
  *     Pagination:
  *       type: object
  *       properties:
@@ -250,7 +231,7 @@ const router = express.Router();
  *         default: "DESC"
  * 
  *     companyIdQuery:
- *       name: company_id
+ *       name: Company_Id
  *       in: query
  *       description: Filter by company ID
  *       required: false

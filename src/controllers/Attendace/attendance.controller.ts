@@ -6,62 +6,29 @@ import { getUserType } from '../../middleware/miniAPIs';
 import uploadFile from '../../middleware/uploadMiddleware';
 import getImageIfExist from '../../middleware/getImageIfExist';
 import fileRemoverMiddleware from '../../middleware/unSyncFile';
+import Attendance from '../../models/Attendance/employeeattentance/Attendance.model';
+import { Op } from 'sequelize';
+import { sequelize } from '../../config/sequalizer';
+import { any } from 'zod';
+import { QueryTypes } from 'sequelize';
 
-// Type definitions
 interface AttendanceRecord {
-    Id?: number;
+    Id: number;
     UserId: number;
-    Start_Date?: Date;
-    End_Date?: Date;
-    Start_KM?: number;
-    End_KM?: number;
-    Latitude?: string;
-    Longitude?: string;
-    Start_KM_ImageName?: string;
-    Start_KM_ImagePath?: string;
-    End_KM_ImageName?: string;
-    End_KM_ImagePath?: string;
-    WorkSummary?: string;
-    IsSalesPerson?: number;
-    Active_Status?: number;
+    Start_Date: Date;
+    End_Date: Date | null;
+    IsSalesPerson: number;
+    Start_KM: number | null;
+    End_KM: number | null;
+    Latitude: number | null;
+    Longitude: number | null;
+    Start_KM_ImageName: string | null;
+    End_KM_ImageName: string | null;
+    Start_KM_ImagePath: string | null;
+    End_KM_ImagePath: string | null;
+    WorkSummary: string | null;
+    Active_Status: number;
     [key: string]: any;
-}
-
-interface EmployeeMaster {
-    Emp_Id?: number;
-    Emp_Name?: string;
-    Department?: string;
-    Sex?: string;
-    Designation?: string;
-    User_Mgt_Id?: number;
-    fingerPrintEmpId?: string;
-}
-
-interface AttendanceLog {
-    EmployeeId?: number;
-    AttendanceDate?: Date;
-    PunchRecords?: string;
-}
-
-interface Employee {
-    EmployeeCode?: string;
-    EmployeeId?: number;
-}
-
-interface User {
-    UserId: number;
-    Name?: string;
-    BranchId?: number;
-}
-
-interface DepartmentOption {
-    value: string;
-    label: string;
-}
-
-interface EmployeeOption {
-    value: number;
-    label: string;
 }
 
 interface AttendanceWithImageUrls extends AttendanceRecord {
@@ -69,580 +36,461 @@ interface AttendanceWithImageUrls extends AttendanceRecord {
     endKmImageUrl: string | null;
 }
 
-interface RankedLog {
-    User_Mgt_Id: number;
-    username: string;
-    Department: string;
-    Sex: string;
-    EmployeeCode: string;
-    LogDateTime: Date;
-    LogDate: Date;
-}
+const toArr = <T>(arr: T | T[]): T[] => Array.isArray(arr) ? arr : [];
 
-interface EmployeeCounts {
-    TotalMaleEmployees: number;
-    TotalFemaleEmployees: number;
-    TotalEmployees: number;
-}
 
-interface PresentCounts {
-    TotalDepartmentsPresentToday: number;
-    TotalMalePresentToday: number;
-    TotalFemalePresentToday: number;
-    TotalPresentToday: number;
-}
+export const addAttendance = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        await uploadFile(req, res, 2, 'Start_KM_Pic');
 
-interface DepartmentDetails {
-    Department: string;
-    TotalMaleEmployees: number;
-    TotalFemaleEmployees: number;
-    TotalEmployees: number;
-}
+        const fileName = req?.file?.filename as string | undefined;
+        const filePath = req?.file?.path as string | undefined;
 
-interface DepartmentPresentCounts {
-    Department: string;
-    TotalMalePresentToday: number;
-    TotalFemalePresentToday: number;
-    TotalPresentToday: number;
-}
+        const { UserId, Start_KM, Latitude, Longitude } = req.body;
 
-interface DepartmentEmployeeDetails {
-    Department: string;
-    Employees: string; // JSON string
-}
+        if (!checkIsNumber(UserId)) {
+            if (filePath) {
+                await fileRemoverMiddleware(filePath);
+            }
+            return invalidInput(res, 'UserId is required');
+        }
 
-interface DepartmentWiseStats {
-    Department: string;
-    TotalMaleEmployees: number;
-    TotalFemaleEmployees: number;
-    TotalEmployees: number;
-    TotalMalePresentToday: number;
-    TotalFemalePresentToday: number;
-    TotalPresentToday: number;
-    Employees: string; // JSON string
-}
+        const isSalesPerson: number = (await getUserType(Number(UserId))) == 6 ? 1 : 0;
 
-interface MonthlyData {
-    Department: string;
-    MonthName: string;
-    MonthNumber: number;
-    YearNumber: number;
-    UniqueEmployeeDays: number;
-}
+        const newAttendance = await Attendance.create({
+            UserId: Number(UserId),
+            Start_Date: new Date(),
+            IsSalesPerson: isSalesPerson,
+            Start_KM: Start_KM ? Number(Start_KM) : null,
+            Latitude: Latitude ? Number(Latitude) : null,
+            Longitude: Longitude ? Number(Longitude) : null,
+            Start_KM_ImageName: fileName || null,
+            Start_KM_ImagePath: filePath || null,
+            Active_Status: 1
+        });
 
-interface MonthlyAverageAttendance {
-    Department: string;
-    MonthlyAveragesJSON: string; // JSON string
-}
-
-interface FinalAttendanceData {
-    TotalMaleEmployees: number;
-    TotalFemaleEmployees: number;
-    TotalEmployees: number;
-    TotalDepartments: number;
-    TotalDepartmentsPresentToday: number;
-    TotalMalePresentToday: number;
-    TotalFemalePresentToday: number;
-    TotalPresentToday: number;
-    DepartmentsPresentToday: string; // JSON string
-    DepartmentWiseCounts: string; // JSON string
-    AttendanceDetails?: any[];
-    DepartmentList?: any[];
-}
-
-// Helper function to handle null/undefined values for getImageIfExist
-const safeGetImageIfExist = (folder: string, imageName: string | undefined | null): string | null => {
-    if (!imageName) {
-        return null;
+        if (newAttendance) {
+            return success(res, 'Attendance Noted!');
+        } else {
+            return failed(res, 'Failed to Add Attendance');
+        }
+    } catch (e) {
+        console.error('Error in addAttendance:', e);
+        if (req.file?.path) {
+            await fileRemoverMiddleware(req.file.path);
+        }
+        return servError(e, res);
     }
-    return getImageIfExist(folder, imageName);
 };
 
-const newAttendance = () => {
-    const toArr = <T>(arr: T | T[]): T[] => Array.isArray(arr) ? arr : [];
 
-    const addAttendance = async (req: Request, res: Response): Promise<Response> => {
-        try {
-            await uploadFile(req, res, 2, 'Start_KM_Pic');
+export const getMyLastAttendance = async (req: Request, res: Response): Promise<Response> => {
+    const { UserId } = req.query;
+  
+    if (!checkIsNumber(UserId)) {
+        return invalidInput(res, 'UserId is required');
+    }
 
-            const fileName = req?.file?.filename as string | undefined;
-            const filePath = req?.file?.path as string | undefined;
+    try {
+     
+        
+        const attendances = await Attendance.findAll({
+            where: {
+                UserId: Number(UserId)
+            },
+            order: [['Start_Date', 'DESC']],
+            limit: 1
+        });
 
-            const { UserId, Start_KM, Latitude, Longitude } = req.body;
+      
 
-            if (!checkIsNumber(UserId)) {
-                return invalidInput(res, 'UserId is required');
-            }
-
-            const isSalesPerson: number = (await getUserType(Number(UserId))) == 6 ? 1 : 0;
-
-            const request = new sql.Request()
-                .input('user', UserId)
-                .input('date', new Date())
-                .input('startkm', Start_KM)
-                .input('latitude', Latitude)
-                .input('longitude', Longitude)
-                .input('imgname', fileName || null)
-                .input('imgpath', filePath || null)
-                .input('salesPerson', isSalesPerson)
-                .input('status', 1)
-                .query(`
-                    INSERT INTO tbl_Attendance 
-                        (UserId, Start_Date, Start_KM, Latitude, Longitude, Start_KM_ImageName, Start_KM_ImagePath, IsSalesPerson, Active_Status)
-                    VALUES 
-                        (@user, @date, @startkm, @latitude, @longitude, @imgname, @imgpath, @salesPerson, @status)`);
-
-            const result = await request;
-
-            if (result.rowsAffected[0] && result.rowsAffected[0] > 0) {
-                return success(res, 'Attendance Noted!');
-            } else {
-                return failed(res, 'Failed to Add Attendance');
-            }
-        } catch (e) {
-            return servError(e, res);
+        if (attendances.length > 0) {
+            const withImg: AttendanceWithImageUrls[] = attendances.map((o: any) => {
+                const jsonData = o.toJSON();
+                return {
+                    ...jsonData,
+                    startKmImageUrl: jsonData?.Start_KM_ImageName ? getImageIfExist('attendance', jsonData.Start_KM_ImageName) : null,
+                    endKmImageUrl: jsonData?.End_KM_ImageName ? getImageIfExist('attendance', jsonData.End_KM_ImageName) : null
+                };
+            });
+            return dataFound(res, withImg);
+        } else {
+            return noData(res);
         }
-    };
+    } catch (e) {
+        console.error('Error in getMyLastAttendance:', e);
+        return servError(e, res);
+    }
+};
 
-    const getMyLastAttendance = async (req: Request, res: Response): Promise<Response> => {
-        const { UserId } = req.query;
+
+export const closeAttendance = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        await uploadFile(req, res, 2, 'End_KM_Pic');
+
+        const fileName = req?.file?.filename as string | undefined;
+        const filePath = req?.file?.path as string | undefined;
+
+        const { Id, End_KM, Description } = req.body;
+
+        if (!checkIsNumber(Id)) {
+            if (filePath) {
+                await fileRemoverMiddleware(filePath);
+            }
+            return invalidInput(res, 'Id is required');
+        }
+
+        // First check if attendance exists
+        const existingAttendance = await Attendance.findByPk(Number(Id));
+        
+        if (!existingAttendance) {
+            if (filePath) {
+                await fileRemoverMiddleware(filePath);
+            }
+            return invalidInput(res, 'Attendance record not found');
+        }
+
+        const [updatedCount] = await Attendance.update(
+            {
+                End_Date: new Date(),
+                End_KM: End_KM ? Number(End_KM) : null,
+                End_KM_ImageName: fileName || null,
+                End_KM_ImagePath: filePath || null,
+                WorkSummary: Description || null,
+                Active_Status: 0
+            },
+            {
+                where: {
+                    Id: Number(Id)
+                }
+            }
+        );
+
+        if (updatedCount > 0) {
+            return success(res, 'Attendance Closed');
+        } else {
+            return failed(res, 'Failed to Close Attendance');
+        }
+    } catch (e) {
+        console.error('Error in closeAttendance:', e);
+        if (req.file?.path) {
+            await fileRemoverMiddleware(req.file.path);
+        }
+        return servError(e, res);
+    }
+};
+
+
+export const getAttendanceHistory = async (req: Request, res: Response): Promise<Response> => {
+    const { UserId, UserTypeID, Branch_Id } = req.query;
+
+    const From = req.query?.From ? ISOString(req.query?.From as string) : ISOString();
+    const To = req.query?.To ? ISOString(req.query?.To as string) : ISOString();
+
+    if (!checkIsNumber(UserTypeID)) {
+        return invalidInput(res, 'UserTypeID is required');
+    }
+
+    const isSalesPerson = Number(UserTypeID) == 6;
+
+    try {
+        
+        
+        const request = new sql.Request()
+            .input('from', From)
+            .input('to', To)
+            .input('userid', UserId)
+            .input('isSalesPerson', isSalesPerson ? 1 : 0)
+            .input('Branch_Id', Branch_Id)
+            .query(`
+                SELECT
+                    a.*,
+                    u.Name AS User_Name,
+                    u.BranchId AS Branch_Id
+                FROM
+                    tbl_Attendance AS a
+                    LEFT JOIN tbl_Users AS u ON u.id = a.UserId
+                WHERE
+                    CONVERT(DATE, a.Start_Date) >= CONVERT(DATE, @from)
+                    AND CONVERT(DATE, a.Start_Date) <= CONVERT(DATE, @to)
+                    ${checkIsNumber(UserId as string) ? ' AND a.UserId = @userid ' : ''}
+                    ${checkIsNumber(Branch_Id as string) ? ' AND u.BranchId = @Branch_Id ' : ''}
+                    ${(isEqualNumber(Number(UserTypeID), 3) || isEqualNumber(Number(UserTypeID), 6)) ? ' AND a.IsSalesPerson = @isSalesPerson ' : ''}
+                ORDER BY a.Start_Date DESC, a.UserId`);
+
+        const result = await request;
+
+
+        if (result.recordset.length > 0) {
+            const withImg: AttendanceWithImageUrls[] = result.recordset.map((o: AttendanceRecord) => ({
+                ...o,
+                startKmImageUrl: o?.Start_KM_ImageName ? getImageIfExist('attendance', o.Start_KM_ImageName) : null,
+                endKmImageUrl: o?.End_KM_ImageName ? getImageIfExist('attendance', o.End_KM_ImageName) : null
+            }));
+            return dataFound(res, withImg);
+        } else {
+            return noData(res);
+        }
+    } catch (e) {
+        console.error('Error in getAttendanceHistory:', e);
+        return servError(e, res);
+    }
+};
+
+
+export const getAttendanceHistorySequelize = async (req: Request, res: Response): Promise<Response> => {
+    const { UserId, UserTypeID } = req.query;
+
+    const From = req.query?.From ? req.query.From as string : '';
+    const To = req.query?.To ? req.query.To as string : '';
+
+    try {
+     
+        
+        const whereCondition: any = {};
+
+        if (From && To) {
+            whereCondition[Op.and] = [
+                sequelize.literal(`CONVERT(DATE, Start_Date) >= CONVERT(DATE, '${From}')`),
+                sequelize.literal(`CONVERT(DATE, Start_Date) <= CONVERT(DATE, '${To}')`)
+            ];
+        } else if (From) {
+            whereCondition[Op.and] = sequelize.literal(`CONVERT(DATE, Start_Date) >= CONVERT(DATE, '${From}')`);
+        } else if (To) {
+            whereCondition[Op.and] = sequelize.literal(`CONVERT(DATE, Start_Date) <= CONVERT(DATE, '${To}')`);
+        }
+
+        if (checkIsNumber(UserId as string)) {
+            whereCondition.UserId = Number(UserId);
+        }
+
+        if (checkIsNumber(UserTypeID) && (Number(UserTypeID) === 3 || Number(UserTypeID) === 6)) {
+            const isSalesPerson = Number(UserTypeID) === 6 ? 1 : 0;
+            whereCondition.IsSalesPerson = isSalesPerson;
+        }
+
+        const attendances = await Attendance.findAll({
+            where: whereCondition,
+            order: [['Start_Date', 'DESC']]
+        });
+
+        if (attendances.length > 0) {
+            const withImg: AttendanceWithImageUrls[] = attendances.map((o: any) => {
+                const jsonData = o.toJSON();
+                return {
+                    ...jsonData,
+                    startKmImageUrl: jsonData?.Start_KM_ImageName ? getImageIfExist('attendance', jsonData.Start_KM_ImageName) : null,
+                    endKmImageUrl: jsonData?.End_KM_ImageName ? getImageIfExist('attendance', jsonData.End_KM_ImageName) : null
+                };
+            });
+            return dataFound(res, withImg);
+        } else {
+            return noData(res);
+        }
+    } catch (e) {
+        console.error('Error in getAttendanceHistorySequelize:', e);
+        return servError(e, res);
+    }
+};
+
+
+export const getDepartment = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const request = new sql.Request()
+            .query(`
+                SELECT DISTINCT 
+                    Department AS value, 
+                    Department AS label
+                FROM tbl_Employee_Master
+                WHERE Department IS NOT NULL AND Department != ''
+                ORDER BY Department`);
+
+        const result = await request;
+        return dataFound(res, toArr(result.recordset));
+    } catch (e) {
+        console.error('Error in getDepartment:', e);
+        return servError(e, res);
+    }
+};
+
+export const getEmployeesByDepartment = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const { department } = req.body;
+
+        if (!department) {
+            return invalidInput(res, "Department is required");
+        }
+
+        const request = new sql.Request()
+            .input("Department", sql.VarChar, department)
+            .query(`
+                SELECT 
+                    Emp_Name AS label, 
+                    Emp_Id AS value
+                FROM tbl_Employee_Master
+                WHERE Department = @Department
+                ORDER BY Emp_Name`
+            );
+
+        const result = await request;
+        return dataFound(res, toArr(result.recordset));
+    } catch (e) {
+        console.error('Error in getEmployeesByDepartment:', e);
+        return servError(e, res);
+    }
+};
+
+export const getAttendanceStats = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const { fromDate, toDate, userId } = req.query;
+
+    
+        const whereCondition: any = {};
+
+        if (fromDate && toDate) {
+            whereCondition[Op.and] = [
+                sequelize.literal(`CONVERT(DATE, Start_Date) >= CONVERT(DATE, '${fromDate}')`),
+                sequelize.literal(`CONVERT(DATE, Start_Date) <= CONVERT(DATE, '${toDate}')`)
+            ];
+        }
+
+
+        if (userId && checkIsNumber(userId as string)) {
+            whereCondition.UserId = Number(userId);
+        }
+
+      
+        const stats = await Attendance.findAll({
+            where: whereCondition,
+            attributes: [
+                [sequelize.fn('COUNT', sequelize.col('Id')), 'totalAttendance'],
+                [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('UserId'))), 'uniqueUsers'],
+                [sequelize.fn('SUM', sequelize.literal('CASE WHEN Active_Status = 1 THEN 1 ELSE 0 END')), 'activeSessions'],
+                [sequelize.fn('SUM', sequelize.literal('CASE WHEN Active_Status = 0 THEN 1 ELSE 0 END')), 'completedSessions'],
+                [sequelize.fn('SUM', sequelize.literal('CASE WHEN IsSalesPerson = 1 THEN 1 ELSE 0 END')), 'salesPersonAttendance']
+            ],
+            raw: true
+        });
+
+
+        const result = stats && stats.length > 0 ? stats[0] : {
+            totalAttendance: 0,
+            uniqueUsers: 0,
+            activeSessions: 0,
+            completedSessions: 0,
+            salesPersonAttendance: 0
+        };
+
+
+        return dataFound(res, [result]);
+        
+    } catch (e) {
+        console.error('Error in getAttendanceStats:', e);
+        return servError(e, res);
+    }
+};
+
+
+export const getUserAttendanceSummary = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const { UserId, year, month } = req.query;
 
         if (!checkIsNumber(UserId)) {
             return invalidInput(res, 'UserId is required');
         }
+        let startDateStr: string;
+        let endDateStr: string;
 
-        try {
-            const request = new sql.Request()
-                .input('user', UserId)
-                .query(`
-                    SELECT 
-                        TOP (1) * 
-                    FROM 
-                        tbl_Attendance 
-                    WHERE 
-                        UserId = @user
-                    ORDER BY Start_Date DESC; `);
-
-            const result = await request;
-
-            if (result.recordset.length > 0) {
-                const withImg: AttendanceWithImageUrls[] = result.recordset.map((o: AttendanceRecord) => ({
-                    ...o,
-                    startKmImageUrl: o?.Start_KM_ImageName ? getImageIfExist('attendance', o.Start_KM_ImageName) : null,
-                    endKmImageUrl: o?.End_KM_ImageName ? getImageIfExist('attendance', o.End_KM_ImageName) : null
-                }));
-                return dataFound(res, withImg);
-            } else {
-                return noData(res);
+        if (year && month) {
+            const yearNum = Number(year);
+            const monthNum = Number(month);
+            
+            if (monthNum < 1 || monthNum > 12) {
+                return invalidInput(res, 'Month must be between 1 and 12');
             }
-        } catch (e) {
-            return servError(e, res);
-        }
-    };
-
-    const closeAttendance = async (req: Request, res: Response): Promise<Response> => {
-        try {
-            await uploadFile(req, res, 2, 'End_KM_Pic');
-
-            const fileName = req?.file?.filename as string | undefined;
-            const filePath = req?.file?.path as string | undefined;
-
-            const { Id, End_KM, Description } = req.body;
-
-            if (!checkIsNumber(Id)) {
-                if (filePath) {
-                    await fileRemoverMiddleware(filePath);
-                }
-                return invalidInput(res, 'Id is required');
-            }
-
-            const request = new sql.Request()
-                .input('enddate', new Date())
-                .input('endkm', End_KM ?? null)
-                .input('imgname', fileName ?? null)
-                .input('imgpath', filePath ?? null)
-                .input('Description', Description ?? null)
-                .input('status', 0)
-                .input('id', Id)
-                .query(`
-                    UPDATE 
-                        tbl_Attendance 
-                    SET
-                        End_Date = @enddate,
-                        End_KM = @endkm,
-                        End_KM_ImageName = @imgname,
-                        End_KM_ImagePath = @imgpath,
-                        WorkSummary = @Description,
-                        Active_Status = @status
-                    WHERE
-                        Id = @id`);
-
-            const result = await request;
-
-            if (result.rowsAffected[0] && result.rowsAffected[0] > 0) {
-                return success(res, 'Attendance Closed');
-            } else {
-                return failed(res, 'Failed to Close Attendance');
-            }
-        } catch (e) {
-            return servError(e, res);
-        }
-    };
-
-    const getAttendanceHistory = async (req: Request, res: Response): Promise<Response> => {
-        const { UserId, UserTypeID, Branch_Id } = req.query;
-
-        const From = req.query?.From ? ISOString(req.query?.From as string) : ISOString();
-        const To = req.query?.To ? ISOString(req.query?.To as string) : ISOString();
-
-        if (!checkIsNumber(UserTypeID)) {
-            return invalidInput(res, 'UserTypeID is required');
+            
+            startDateStr = `${yearNum}-${String(monthNum).padStart(2, '0')}-01`;
+            
+            const lastDay = new Date(yearNum, monthNum, 0).getDate();
+            endDateStr = `${yearNum}-${String(monthNum).padStart(2, '0')}-${lastDay}`;
+        } else {
+            const currentDate = new Date();
+            const currentYear = currentDate.getFullYear();
+            const currentMonth = currentDate.getMonth() + 1;
+            
+            startDateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+            
+            const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+            endDateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${lastDay}`;
         }
 
-        const isSalesPerson = Number(UserTypeID) === 6;
+  
 
-        try {
-            const request = new sql.Request()
-                .input('from', From)
-                .input('to', To)
-                .input('userid', UserId)
-                .input('isSalesPerson', isSalesPerson)
-                .input('Branch_Id', Branch_Id)
-                .query(`
-                    SELECT
-                        a.*,
-                        u.Name AS User_Name,
-                        u.BranchId AS Branch_Id
-                    FROM
-                        tbl_Attendance AS a
-                        LEFT JOIN tbl_Users AS u ON u.UserId = a.UserId
-                    WHERE
-                        CONVERT(DATE, a.Start_Date) >= CONVERT(DATE, @from)
-                        AND CONVERT(DATE, a.Start_Date) <= CONVERT(DATE, @to)
-                        ${checkIsNumber(UserId as string) ? ' AND a.UserId = @userid ' : ''}
-                        ${checkIsNumber(Branch_Id as string) ? ' AND u.BranchId = @Branch_Id ' : ''}
-                        ${(isEqualNumber(Number(UserTypeID), 3) || isEqualNumber(Number(UserTypeID), 6)) ? ' AND a.IsSalesPerson = @isSalesPerson ' : ''}
-                    ORDER BY CONVERT(DATETIME, a.Start_Date), a.UserId `);
+        const attendances = await sequelize.query(`
+            SELECT 
+                Id,
+                UserId,
+                Start_Date,
+                End_Date,
+                IsSalesPerson,
+                Start_KM,
+                End_KM,
+                Latitude,
+                Longitude,
+                Start_KM_ImageName,
+                End_KM_ImageName,
+                Start_KM_ImagePath,
+                End_KM_ImagePath,
+                WorkSummary,
+                Active_Status
+            FROM tbl_Attendance 
+            WHERE 
+                UserId = ? 
+                AND CONVERT(DATE, Start_Date) >= CONVERT(DATE, ?)
+                AND CONVERT(DATE, Start_Date) <= CONVERT(DATE, ?)
+            ORDER BY Start_Date DESC
+        `, {
+            replacements: [Number(UserId), startDateStr, endDateStr],
+            type: QueryTypes.SELECT
+        });
 
-            const result = await request;
+      
 
-            if (result.recordset.length > 0) {
-                const withImg: AttendanceWithImageUrls[] = result.recordset.map((o: AttendanceRecord) => ({
-                    ...o,
-                    startKmImageUrl: o?.Start_KM_ImageName ? getImageIfExist('attendance', o.Start_KM_ImageName) : null,
-                    endKmImageUrl: o?.End_KM_ImageName ? getImageIfExist('attendance', o.End_KM_ImageName) : null
-                }));
-                return dataFound(res, withImg);
-            } else {
-                return noData(res);
-            }
-        } catch (e) {
-            return servError(e, res);
-        }
-    };
+        const summary = {
+            totalDays: attendances.length,
+            presentDays: attendances.filter((a: any) => a.Active_Status === 0 && a.End_Date !== null).length,
+            activeDays: attendances.filter((a: any) => a.Active_Status === 1).length,
+            totalWorkHours: Number(attendances
+                .filter((a: any) => a.End_Date !== null)
+                .reduce((total: number, a: any) => {
+                    try {
+                        const startTime = new Date(a.Start_Date).getTime();
+                        const endTime = new Date(a.End_Date).getTime();
+                        const hours = (endTime - startTime) / (1000 * 60 * 60);
+                        return total + (hours > 0 ? hours : 0);
+                    } catch (err) {
+                        console.error('Error calculating hours for attendance:', a.Id, err);
+                        return total;
+                    }
+                }, 0).toFixed(2))
+        };
 
-    const getDepartment = async (req: Request, res: Response): Promise<Response> => {
-        try {
-            const request = new sql.Request()
-                .query(`
-                    SELECT DISTINCT Department AS value, Department AS label
-                    FROM tbl_Employee_Master
-                `);
-
-            const result = await request;
-
-            return dataFound(res, [], 'data found', {
-                department: toArr<DepartmentOption>(result.recordsets[0])
-            });
-        } catch (e) {
-            return servError(e, res);
-        }
-    };
-
-    const employeewise = async (req: Request, res: Response): Promise<Response> => {
-        const FromDate = req.query?.FromDate
-            ? ISOString(req.query?.FromDate as string)
-            : ISOString();
-        const ToDate = req.query?.ToDate
-            ? ISOString(req.query?.ToDate as string)
-            : ISOString();
-
-        try {
-            if (!FromDate || !ToDate) {
-                return invalidInput(res, "FromDate and ToDate are required");
-            }
-
-            const request = new sql.Request();
-            request.input("FromDate", sql.DateTime, FromDate);
-            request.input("ToDate", sql.DateTime, ToDate);
-
-            const query = `
-                WITH RankedLogs AS (
-                    SELECT 
-                        em.User_Mgt_Id,          
-                        u.Name AS username,
-                        ISNULL(NULLIF(em.Department, ''), 'Unassigned') AS Department,
-                        em.Sex,
-                        pd.EmployeeCode,        
-                        al.AttendanceDate AS LogDateTime,           
-                        CAST(al.AttendanceDate AS DATE) AS LogDate
-                    FROM 
-                        tbl_Employee_Master em
-                    LEFT JOIN 
-                        tbl_Users u ON u.UserId = em.User_Mgt_Id
-                    LEFT JOIN 
-                        etimetracklite1.dbo.Employees pd 
-                        ON CAST(pd.EmployeeCode AS NVARCHAR(50)) = em.fingerPrintEmpId
-                    LEFT JOIN 
-                        etimetracklite1.dbo.AttendanceLogs al 
-                        ON al.EmployeeId = pd.EmployeeId 
-                    WHERE 
-                        CAST(al.AttendanceDate AS DATE) BETWEEN @FromDate AND @ToDate
-                        AND CAST(al.PunchRecords AS NVARCHAR(MAX)) IS NOT NULL  
-                        AND LTRIM(RTRIM(CAST(al.PunchRecords AS NVARCHAR(MAX)))) <> ''
-                ), EmployeeCounts AS (
-                    SELECT
-                        SUM(CASE WHEN Sex = 'Male' THEN 1 ELSE 0 END) AS TotalMaleEmployees,
-                        SUM(CASE WHEN Sex = 'Female' THEN 1 ELSE 0 END) AS TotalFemaleEmployees,
-                        COUNT(*) AS TotalEmployees
-                    FROM
-                        tbl_Employee_Master
-                ), PresentCounts AS (
-                    SELECT
-                        COUNT(DISTINCT ISNULL(NULLIF(Department, ''), 'Unassigned')) AS TotalDepartmentsPresentToday,
-                        SUM(CASE WHEN Sex = 'Male' THEN 1 ELSE 0 END) AS TotalMalePresentToday,
-                        SUM(CASE WHEN Sex = 'Female' THEN 1 ELSE 0 END) AS TotalFemalePresentToday,
-                        COUNT(DISTINCT User_Mgt_Id) AS TotalPresentToday
-                    FROM
-                        RankedLogs
-                ), DepartmentList AS (
-                    SELECT
-                        (
-                            SELECT COUNT(DISTINCT ISNULL(NULLIF(Department, ''), 'Unassigned')) AS DepartmentCount
-                            FROM tbl_Employee_Master
-                            FOR JSON PATH
-                        ) AS DepartmentsPresentToday
-                ), TotalDepartmentList AS (
-                    SELECT 
-                        COUNT(DISTINCT ISNULL(NULLIF(Department, ''), 'Unassigned')) AS TotalDepartments
-                    FROM 
-                        tbl_Employee_Master
-                ), DepartmentDetails AS (
-                    SELECT
-                        ISNULL(NULLIF(Department, ''), 'Unassigned') AS Department,
-                        SUM(CASE WHEN Sex = 'Male' THEN 1 ELSE 0 END) AS TotalMaleEmployees,
-                        SUM(CASE WHEN Sex = 'Female' THEN 1 ELSE 0 END) AS TotalFemaleEmployees,
-                        COUNT(*) AS TotalEmployees
-                    FROM
-                        tbl_Employee_Master
-                    GROUP BY
-                        ISNULL(NULLIF(Department, ''), 'Unassigned')
-                ), DepartmentPresentCounts AS (
-                    SELECT
-                        ISNULL(NULLIF(Department, ''), 'Unassigned') AS Department,
-                        SUM(CASE WHEN Sex = 'Male' THEN 1 ELSE 0 END) AS TotalMalePresentToday,
-                        SUM(CASE WHEN Sex = 'Female' THEN 1 ELSE 0 END) AS TotalFemalePresentToday,
-                        COUNT(DISTINCT User_Mgt_Id) AS TotalPresentToday
-                    FROM
-                        RankedLogs
-                    GROUP BY
-                        ISNULL(NULLIF(Department, ''), 'Unassigned')
-                ), DepartmentEmployeeDetails AS (
-                    SELECT
-                        ISNULL(NULLIF(Department, ''), 'Unassigned') AS Department,
-                        (
-                            SELECT
-                                em_inner.Emp_Name,
-                                em_inner.Sex,
-                                em_inner.Designation
-                            FROM
-                                tbl_Employee_Master em_inner
-                            WHERE
-                                ISNULL(NULLIF(em_inner.Department, ''), 'Unassigned') = ISNULL(NULLIF(em.Department, ''), 'Unassigned')
-                            FOR JSON PATH
-                        ) AS Employees
-                    FROM
-                        tbl_Employee_Master em
-                    GROUP BY
-                        ISNULL(NULLIF(Department, ''), 'Unassigned')
-                ), DepartmentWiseStats AS (
-                    SELECT
-                        dd.Department,
-                        dd.TotalMaleEmployees,
-                        dd.TotalFemaleEmployees,
-                        dd.TotalEmployees,
-                        ISNULL(dpc.TotalMalePresentToday, 0) AS TotalMalePresentToday,
-                        ISNULL(dpc.TotalFemalePresentToday, 0) AS TotalFemalePresentToday,
-                        ISNULL(dpc.TotalPresentToday, 0) AS TotalPresentToday,
-                        ded.Employees
-                    FROM
-                        DepartmentDetails dd
-                    LEFT JOIN
-                        DepartmentPresentCounts dpc ON dd.Department = dpc.Department
-                    LEFT JOIN
-                        DepartmentEmployeeDetails ded ON dd.Department = ded.Department
-                ), FinalData AS (
-                    SELECT 
-                        em.User_Mgt_Id,
-                        ISNULL(NULLIF(em.Department, ''), 'Unassigned') AS Department,
-                        u.Name AS username,
-                        CAST(al.AttendanceDate AS DATE) AS LogDate,
-                        DATENAME(MONTH, al.AttendanceDate) AS MonthName,
-                        MONTH(al.AttendanceDate) AS MonthNumber,
-                        YEAR(al.AttendanceDate) AS YearNumber
-                    FROM 
-                        tbl_Employee_Master em
-                    LEFT JOIN 
-                        tbl_Users u ON u.UserId = em.User_Mgt_Id
-                    LEFT JOIN 
-                        etimetracklite1.dbo.Employees pd ON CAST(pd.EmployeeCode AS NVARCHAR(50)) = em.fingerPrintEmpId
-                    LEFT JOIN 
-                        etimetracklite1.dbo.AttendanceLogs al ON al.EmployeeId = pd.EmployeeId
-                    WHERE
-                        YEAR(al.AttendanceDate) = YEAR(@FromDate)
-                        AND CAST(al.PunchRecords AS NVARCHAR(MAX)) IS NOT NULL  
-                        AND LTRIM(RTRIM(CAST(al.PunchRecords AS NVARCHAR(MAX)))) <> ''
-                ), MonthlyData AS (
-                    SELECT 
-                        Department,
-                        MonthName,
-                        MonthNumber,
-                        YearNumber,
-                        COUNT(DISTINCT User_Mgt_Id) AS UniqueEmployeeDays
-                    FROM 
-                        FinalData
-                    GROUP BY
-                        Department,
-                        MonthName,
-                        MonthNumber,
-                        YearNumber
-                ), AllMonths AS (
-                    SELECT 1 AS MonthNumber, 'January' AS MonthName UNION ALL
-                    SELECT 2, 'February' UNION ALL
-                    SELECT 3, 'March' UNION ALL
-                    SELECT 4, 'April' UNION ALL
-                    SELECT 5, 'May' UNION ALL
-                    SELECT 6, 'June' UNION ALL
-                    SELECT 7, 'July' UNION ALL
-                    SELECT 8, 'August' UNION ALL
-                    SELECT 9, 'September' UNION ALL
-                    SELECT 10, 'October' UNION ALL
-                    SELECT 11, 'November' UNION ALL
-                    SELECT 12, 'December'
-                ), MonthlyAverageAttendance AS (
-                    SELECT
-                        d.Department,
-                        (
-                            SELECT
-                                am.MonthName,
-                                am.MonthNumber,
-                                y.YearNumber, 
-                                ISNULL(md.UniqueEmployeeDays, 0) AS UniqueEmployeeDays
-                            FROM 
-                                AllMonths am
-                            CROSS JOIN 
-                                (SELECT DISTINCT YearNumber FROM FinalData) y
-                            LEFT JOIN 
-                                MonthlyData md ON md.MonthNumber = am.MonthNumber 
-                                              AND md.YearNumber = y.YearNumber 
-                                              AND md.Department = d.Department
-                            ORDER BY 
-                                y.YearNumber, am.MonthNumber
-                            FOR JSON PATH
-                        ) AS MonthlyAveragesJSON
-                    FROM
-                        (SELECT DISTINCT Department FROM FinalData) d
-                )
-                SELECT
-                    ec.TotalMaleEmployees,
-                    ec.TotalFemaleEmployees,
-                    ec.TotalEmployees,
-                    td.TotalDepartments,  
-                    pc.TotalDepartmentsPresentToday,
-                    pc.TotalMalePresentToday,
-                    pc.TotalFemalePresentToday,
-                    pc.TotalPresentToday,
-                    dl.DepartmentsPresentToday,
-                    (
-                        SELECT 
-                            dws.Department,
-                            dws.TotalMaleEmployees,
-                            dws.TotalFemaleEmployees,
-                            dws.TotalEmployees,
-                            dws.TotalMalePresentToday,
-                            dws.TotalFemalePresentToday,
-                            dws.TotalPresentToday,
-                            dws.Employees,
-                            ISNULL(maa.MonthlyAveragesJSON, '[]') AS MonthlyAverageAttendance
-                        FROM DepartmentWiseStats dws
-                        LEFT JOIN MonthlyAverageAttendance maa ON dws.Department = maa.Department
-                        FOR JSON PATH
-                    ) AS DepartmentWiseCounts
-                FROM
-                    EmployeeCounts ec
-                CROSS JOIN
-                    PresentCounts pc
-                CROSS JOIN
-                    DepartmentList dl
-                CROSS JOIN
-                    TotalDepartmentList td;`;
-
-            const result = await request.query(query);
-
-            const parsedData: FinalAttendanceData[] = result.recordset.map((row: any) => ({
-                ...row,
-                AttendanceDetails: row.AttendanceDetails
-                    ? JSON.parse(row.AttendanceDetails)
-                    : [],
-                DepartmentList: row.DepartmentList
-                    ? JSON.parse(row.DepartmentList)
-                    : [],
-            }));
-
-            if (parsedData.length > 0) {
-                return dataFound(res, parsedData);
-            } else {
-                return noData(res);
-            }
-        } catch (e) {
-            return servError(e, res);
-        }
-    };
-
-    const getEmployeesByDepartment = async (req: Request, res: Response): Promise<Response> => {
-        try {
-            const { department } = req.body;
-
-            if (!department) {
-                return res.status(400).json({ error: "Department is required" });
-            }
-
-            const request = new sql.Request()
-                .input("Department", sql.VarChar, department)
-                .query(`
-                    SELECT Emp_Name AS label, Emp_Id AS value
-                    FROM tbl_Employee_Master
-                    WHERE Department = @Department`
-                );
-
-            const result = await request;
-            return dataFound(res, [], "data found", {
-                employees: toArr<EmployeeOption>(result.recordsets[0])
-            });
-        } catch (e) {
-            return servError(e, res);
-        }
-    };
-
-    return {
-        addAttendance,
-        getMyLastAttendance,
-        closeAttendance,
-        getAttendanceHistory,
-        getDepartment,
-        employeewise,
-        getEmployeesByDepartment,
-    };
+        return dataFound(res, [summary]);
+        
+    } catch (e) {
+        console.error('Error in getUserAttendanceSummary:', e);
+        return servError(e, res);
+    }
 };
 
-export default newAttendance();
+export default {
+    addAttendance,
+    getMyLastAttendance,
+    closeAttendance,
+    getAttendanceHistory,
+    getAttendanceHistorySequelize,
+    getDepartment,
+    getEmployeesByDepartment,
+    getAttendanceStats,
+    getUserAttendanceSummary
+};

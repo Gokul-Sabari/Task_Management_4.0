@@ -13,7 +13,7 @@ import {
     LeaveType
 } from '../../../models/masters/Leave type/leaveType.model';
 
-/* ================= ZOD VALIDATION HELPER ================= */
+
 const validateWithZod = <T>(schema: any, data: any) => {
     try {
         return { success: true, data: schema.parse(data) as T };
@@ -31,7 +31,7 @@ const validateWithZod = <T>(schema: any, data: any) => {
     }
 };
 
-/* ================= GET ALL ================= */
+
 export const getAllLeaveTypes = async (req: Request, res: Response) => {
     try {
         const validation = validateWithZod<LeaveTypeQueryParams>(
@@ -57,7 +57,7 @@ export const getAllLeaveTypes = async (req: Request, res: Response) => {
 
         const where: any = {};
 
-        // Add search filter if provided
+
         if (search && search.trim()) {
             where.LeaveType = { 
                 [Op.like]: `%${search}%` 
@@ -99,7 +99,7 @@ export const getAllLeaveTypes = async (req: Request, res: Response) => {
     }
 };
 
-/* ================= GET BY ID ================= */
+
 export const getLeaveTypeById = async (req: Request, res: Response) => {
     try {
         const validation = validateWithZod<{ id: number }>(
@@ -138,7 +138,7 @@ export const getLeaveTypeById = async (req: Request, res: Response) => {
     }
 };
 
-/* ================= CREATE ================= */
+
 export const createLeaveType = async (req: Request, res: Response) => {
     try {
         console.log('Request Body:', req.body);
@@ -158,7 +158,7 @@ export const createLeaveType = async (req: Request, res: Response) => {
 
         const { LeaveType: leaveTypeName } = validation.data!;
 
-        // Check for duplicate leave type name
+       
         const exists = await LeaveType.findOne({
             where: {
                 LeaveType: leaveTypeName
@@ -172,7 +172,7 @@ export const createLeaveType = async (req: Request, res: Response) => {
             });
         }
 
-        // Create the leave type
+        
         const leaveType = await LeaveType.create({
             LeaveType: leaveTypeName,
             Id: 0
@@ -192,8 +192,7 @@ export const createLeaveType = async (req: Request, res: Response) => {
             sql: e.sql,
             stack: process.env.NODE_ENV === 'development' ? e.stack : undefined
         });
-        
-        // Handle specific database errors
+     
         if (e.name === 'SequelizeDatabaseError') {
             if (e.parent && e.parent.number === 515) {
                 return res.status(500).json({
@@ -210,7 +209,7 @@ export const createLeaveType = async (req: Request, res: Response) => {
             });
         }
         
-        // Handle validation errors
+       
         if (e.name === 'SequelizeValidationError') {
             return res.status(400).json({
                 success: false,
@@ -230,10 +229,10 @@ export const createLeaveType = async (req: Request, res: Response) => {
     }
 };
 
-/* ================= UPDATE ================= */
+
 export const updateLeaveType = async (req: Request, res: Response) => {
     try {
-        // Validate ID parameter
+
         const idValidation = validateWithZod<{ id: number }>(
             leaveTypeIdSchema,
             req.params
@@ -246,7 +245,7 @@ export const updateLeaveType = async (req: Request, res: Response) => {
             });
         }
 
-        // Validate request body
+
         const bodyValidation = validateWithZod<LeaveTypeUpdateInput>(
             leaveTypeUpdateSchema,
             req.body
@@ -260,7 +259,7 @@ export const updateLeaveType = async (req: Request, res: Response) => {
             });
         }
 
-        // Find the leave type
+
         const leaveType = await LeaveType.findByPk(idValidation.data!.id);
         if (!leaveType) {
             return res.status(404).json({
@@ -269,7 +268,6 @@ export const updateLeaveType = async (req: Request, res: Response) => {
             });
         }
 
-        // Check for duplicate name (excluding current record)
         if (bodyValidation.data!.LeaveType) {
             const duplicate = await LeaveType.findOne({
                 where: {
@@ -286,12 +284,12 @@ export const updateLeaveType = async (req: Request, res: Response) => {
             }
         }
 
-        // Update the leave type
+      
         await leaveType.update({
             LeaveType: bodyValidation.data!.LeaveType
         });
         
-        // Fetch updated record
+   
         const updatedLeaveType = await LeaveType.findByPk(leaveType.Id);
 
         return res.status(200).json({
@@ -319,7 +317,7 @@ export const updateLeaveType = async (req: Request, res: Response) => {
     }
 };
 
-/* ================= DELETE ================= */
+
 export const deleteLeaveType = async (req: Request, res: Response) => {
     try {
         const validation = validateWithZod<{ id: number }>(
@@ -342,7 +340,6 @@ export const deleteLeaveType = async (req: Request, res: Response) => {
             });
         }
 
-        // Hard delete (permanent removal)
         await leaveType.destroy();
         
         return res.status(200).json({
@@ -369,7 +366,7 @@ export const deleteLeaveType = async (req: Request, res: Response) => {
     }
 };
 
-/* ================= DROPDOWN ================= */
+
 export const getLeaveTypeDropdown = async (req: Request, res: Response) => {
     try {
         const leaveTypes = await LeaveType.findAll({

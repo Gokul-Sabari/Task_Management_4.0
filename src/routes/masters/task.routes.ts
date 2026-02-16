@@ -84,7 +84,7 @@ const router = express.Router();
  *         Task_Desc:
  *           type: string
  *           nullable: true
- *        Company_Id:
+ *         Company_Id:
  *           type: integer
  *           nullable: true
  *         Task_Group_Id:

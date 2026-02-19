@@ -11,7 +11,7 @@ import taskRoutes from './task.routes';
 import LeavetypeRoutes from './leaveType.route';
 import ProjectEmployee from './employeeinvolved.route';
 import employees from './employeemaster.route';
-
+import projectSchedule from './projectSchedule.route';
 const router = express.Router();
 
 
@@ -27,6 +27,7 @@ router.use('/tasks',taskRoutes)
 router.use('/company',taskRoutes)
 router.use('/Leavetype',LeavetypeRoutes)
 router.use('/employees',employees)
+router.use('/projectSchedule',projectSchedule)
 
 
 export default router;

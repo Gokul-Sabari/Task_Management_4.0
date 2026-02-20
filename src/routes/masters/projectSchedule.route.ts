@@ -715,7 +715,7 @@ router.get('/:id', getScheduleById);
 
 /**
  * @swagger
- * /api/masters/projectSchedule/{id}/details:
+ * /api/masters/projectSchedule/{id}:
  *   get:
  *     summary: Get schedule details by schedule ID
  *     description: Retrieve all task details for a specific schedule
@@ -747,7 +747,7 @@ router.get('/:id', getScheduleById);
  *       500:
  *         description: Internal server error
  */
-router.get('/:id/details', getScheduleDetails);
+router.get('/:id', getScheduleDetails);
 
 /**
  * @swagger

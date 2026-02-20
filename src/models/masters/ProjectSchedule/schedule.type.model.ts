@@ -19,7 +19,8 @@ export const ScheduleCreateSchema = z.object({
         Plan_Week: z.number().int().min(1).max(52).nullable().optional(),
         Plan_Month: z.number().int().min(1).max(12).nullable().optional(),
         Plan_Day: z.number().int().min(1).max(7).nullable().optional()
-    }).optional()
+    }).optional(),
+      selectedDays: z.array(z.number()).optional() 
 });
 
 export const ScheduleUpdateSchema = z.object({
@@ -34,13 +35,14 @@ export const ScheduleUpdateSchema = z.object({
     Sch_Est_Start_Time: z.string().nullable().optional(),
     Sch_Est_End_Time: z.string().nullable().optional(),
     Task_Sch_Duaration: z.number().int().nullable().optional(),
-    Sch_Status: z.enum(['Active', 'Completed', 'Cancelled', 'On Hold']),
+    Sch_Status: z.number().default(1),
     Update_By: z.number().int().positive(),
     planDetails: z.object({
         Plan_Week: z.number().int().min(1).max(52).nullable().optional(),
         Plan_Month: z.number().int().min(1).max(12).nullable().optional(),
         Plan_Day: z.number().int().min(1).max(7).nullable().optional()
-    }).optional()
+    }).optional(),
+      selectedDays: z.array(z.number()).optional() 
 });
 
 export const ScheduleStatusUpdateSchema = z.object({

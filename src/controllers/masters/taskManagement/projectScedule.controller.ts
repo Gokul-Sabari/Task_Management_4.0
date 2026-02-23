@@ -128,7 +128,7 @@ export const getAllSchedules = async (req: Request, res: Response) => {
             type: 'SELECT'
         }) as any[];
 
-        const total = countResult[0]?.total || 0;
+      
 
 
         const schedulesQuery = `
@@ -138,11 +138,14 @@ export const getAllSchedules = async (req: Request, res: Response) => {
                 s.Sch_Start_Date, s.Sch_End_Date, s.Task_Sch_Timer_Based,
                 s.Sch_Est_Start_Time, s.Sch_Est_End_Time, s.Task_Sch_Duaration,
                 s.Sch_Status, s.Entry_By, s.Entry_Date, s.Update_By, s.Update_Date,
+                pm.Project_Name,
                sd.Plan_Month, sd.Plan_Day
             FROM tbl_Project_Schedule s
             LEFT JOIN tbl_Task t ON s.Task_Id = t.Task_Id
+             LEFT JOIN tbl_Project_Master pm ON t.Project_Id = pm.Project_Id
             LEFT JOIN tbl_Sch_Plan p ON s.Sch_Plan_Id = p.Plan_Id
             LEFT JOIN tbl_Project_Sch_DT sd ON s.Sch_Id = sd.Sch_Id
+            
             ${whereClause}
         `;
 
@@ -235,10 +238,11 @@ export const getAllSchedules = async (req: Request, res: Response) => {
                     schId: schedule.Sch_Id,
                     schNo: schedule.Sch_No,
                     schDate: schedule.Sch_Date,
-                    taskId: schedule.Task_Id,
-                    taskName: schedule.Task_Name,
+                    Task_Id: schedule.Task_Id,
+                    Task_Name: schedule.Task_Name,
                     schTypeId: schedule.Sch_Type_Id,
                     schPlanId: schedule.Sch_Plan_Id,
+                    Project_Name:schedule.Project_Name,
                     planType: schedule.Plan_Type,
                     schStartDate: schedule.Sch_Start_Date,
                     schEndDate: schedule.Sch_End_Date,

@@ -280,6 +280,71 @@ export const getCompany = async (req: DropdownRequest, res: Response): Promise<v
 };
 
 
+
+
+export const getTasksByProject = async (req: DropdownRequest, res: Response): Promise<void> => {
+    try {
+        const { projectId } = req.params;
+    
+        if (!projectId) {
+            res.status(400).json({
+                success: false,
+                message: 'Project ID is required',
+                data: [],
+                count: 0,
+                timestamp: new Date().toISOString()
+            } as ApiResponse);
+            return;
+        }
+        
+        if (isNaN(Number(projectId))) {
+            res.status(400).json({
+                success: false,
+                message: 'Project ID must be a valid number',
+                data: [],
+                count: 0,
+                timestamp: new Date().toISOString()
+            } as ApiResponse);
+            return;
+        }
+        
+        const projectIdNum = Number(projectId);
+        
+      
+        const data = await (dropdownModel as any).getTasksByProject?.(projectIdNum) || [];
+
+        if (!data || data.length === 0) {
+           
+            
+            res.status(404).json({
+                success: false,
+                message: 'No tasks found for the specified project',
+                data: [],
+                count: 0,
+                timestamp: new Date().toISOString()
+            } as ApiResponse);
+            return;
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Tasks retrieved successfully',
+            data,
+            count: data.length,
+            timestamp: new Date().toISOString()
+        } as ApiResponse);
+        
+    } catch (error) {
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve tasks',
+            error: error instanceof Error ? error.message : 'Unknown error',
+            timestamp: new Date().toISOString()
+        } as ApiResponse);
+    }
+};
+
 export default {
     getProjectHeadDropdown,
     getProjectStatusDropdown,
@@ -287,6 +352,7 @@ export default {
     searchEmployees,
     getTaskDropdown,
     getProjectsDropdown,
-    getAllDropdowns
+    getAllDropdowns,
+    getTasksByProject
 
 };

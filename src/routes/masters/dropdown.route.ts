@@ -6,7 +6,8 @@ import {
     getTaskDropdown,
     getAllDropdowns,
     searchEmployees,
-    getCompany
+    getCompany,
+    getTasksByProject
 
 } from '../../controllers/dropdown/dropdown.controller';
 import { authenticate } from '../../middleware/auth';
@@ -509,5 +510,69 @@ router.get('/all', authenticate, getAllDropdowns);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get('/company', authenticate, getCompany);
+
+
+/**
+ * @swagger
+ * /api/masters/dropdowns/taskDetails/{projectId}:
+ *   get:
+ *     summary: Get task details dropdown by project
+ *     description: Retrieve task details from task_master table for a specific project
+ *     tags: [Dropdowns]
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Project ID to filter tasks
+ *       - in: query
+ *         name: activeOnly
+ *         schema:
+ *           type: boolean
+ *           default: true
+ *         description: Filter by active tasks only (default true)
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved task details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Tasks retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       value:
+ *                         type: integer
+ *                         example: 1
+ *                       label:
+ *                         type: string
+ *                         example: "Frontend Development"
+ *                 count:
+ *                   type: integer
+ *                   example: 8
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Invalid project ID
+ *       401:
+ *         description: Unauthorized - No token provided
+ *       404:
+ *         description: No tasks found for the specified project
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/taskDetails/:projectId', authenticate, getTasksByProject);
+
 
 export default router;

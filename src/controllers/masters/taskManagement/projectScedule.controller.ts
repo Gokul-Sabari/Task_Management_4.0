@@ -138,7 +138,7 @@ export const getAllSchedules = async (req: Request, res: Response) => {
                 s.Sch_Start_Date, s.Sch_End_Date, s.Task_Sch_Timer_Based,
                 s.Sch_Est_Start_Time, s.Sch_Est_End_Time, s.Task_Sch_Duaration,
                 s.Sch_Status, s.Entry_By, s.Entry_Date, s.Update_By, s.Update_Date,
-                sd.Plan_Week, sd.Plan_Month, sd.Plan_Day
+               sd.Plan_Month, sd.Plan_Day
             FROM tbl_Project_Schedule s
             LEFT JOIN tbl_Task t ON s.Task_Id = t.Task_Id
             LEFT JOIN tbl_Sch_Plan p ON s.Sch_Plan_Id = p.Plan_Id

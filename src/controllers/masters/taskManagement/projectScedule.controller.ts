@@ -187,7 +187,6 @@ export const getAllSchedules = async (req: Request, res: Response) => {
         const planDetailsQuery = `
             SELECT 
                 Sch_Id,
-                Plan_Week,
                 Plan_Month,
                 Plan_Day
             FROM tbl_Project_Sch_DT 
@@ -220,7 +219,6 @@ export const getAllSchedules = async (req: Request, res: Response) => {
                 planDetailsByScheduleId[plan.Sch_Id] = [];
             }
             planDetailsByScheduleId[plan.Sch_Id].push({
-                planWeek: plan.Plan_Week,
                 planMonth: plan.Plan_Month,
                 planDay: plan.Plan_Day
             });
@@ -290,7 +288,7 @@ export const getScheduleById = async (req: Request, res: Response) => {
         const query = `
             SELECT 
                 s.*, t.Task_Name, p.Plan_Type,
-                sd.Plan_Week, sd.Plan_Month, sd.Plan_Day
+                sd.Plan_Month, sd.Plan_Day
             FROM tbl_Project_Schedule s
             LEFT JOIN tbl_Task t ON s.Task_Id = t.Task_Id
             LEFT JOIN tbl_Sch_Plan p ON s.Sch_Plan_Id = p.Plan_Id
@@ -321,7 +319,6 @@ export const getScheduleById = async (req: Request, res: Response) => {
             schedule: rows[0],
             scheduleDetails: details,
             planDetails: {
-                Plan_Week: rows[0].Plan_Week,
                 Plan_Month: rows[0].Plan_Month,
                 Plan_Day: rows[0].Plan_Day
             }
@@ -372,7 +369,7 @@ export const createSchedule = async (req: Request, res: Response) => {
         const body = {
             ...req.body,
             Sch_No: req.body.Sch_No?.trim(),
-            Sch_Status: req.body.Sch_Status || 'Active'
+            Sch_Status: req.body.Sch_Status
         };
 
         const validation = validateWithZod<ScheduleCreate>(
@@ -392,7 +389,7 @@ export const createSchedule = async (req: Request, res: Response) => {
             Sch_No, Sch_Date, Task_Id, Sch_Type_Id, Sch_Plan_Id,
             Sch_Start_Date, Sch_End_Date, Task_Sch_Timer_Based,
             Sch_Est_Start_Time, Sch_Est_End_Time, Task_Sch_Duaration,
-            Sch_Status, Entry_By, selectedDays 
+            Sch_Status, Entry_By, planDetails, selectedDays 
         } = validation.data!;
 
         const formatDateForSQL = (date: Date | string | null): string | null => {
@@ -408,11 +405,6 @@ export const createSchedule = async (req: Request, res: Response) => {
         interface MaxIdResult {
             CurrentMaxId: number;
             NextId: number;
-        }
-
-        interface MaxAIdResult {
-            CurrentMaxAId: number;
-            NextAId: number;
         }
 
         // Get plan type information
@@ -488,7 +480,7 @@ export const createSchedule = async (req: Request, res: Response) => {
             finalSchId = nextSchId;
         }
 
-        // Start transaction and insert with the final ID
+        // Start transaction
         transaction = await sequelize.transaction();
 
         try {
@@ -525,59 +517,101 @@ export const createSchedule = async (req: Request, res: Response) => {
                 transaction
             });
 
-            // Handle date range if provided
+
+            if (Sch_Plan_Id !== 1 && Sch_Plan_Id !== 5 && selectedDays && selectedDays.length > 0) {
+              
+              if (Sch_Plan_Id !== 1 && Sch_Plan_Id !== 5 && selectedDays && selectedDays.length > 0) {
+ 
+    if (Sch_Plan_Id === 2) {
+      
+        for (const day of selectedDays) {
+            await sequelize.query(
+                `INSERT INTO tbl_Project_Sch_DT
+                 (Sch_Id, Plan_Month, Plan_Day)
+                 VALUES (?, ?, ?)`,
+                {
+                    replacements: [
+                        finalSchId,
+                        null,
+                        day   
+                    ],
+                    type: QueryTypes.INSERT,
+                    transaction
+                }
+            );
+        }
+    } 
+    else if (Sch_Plan_Id === 3) { // Weekly Based
+        // Insert selected weeks - Note: Your table doesn't have Plan_Week
+        // You might need to store week info in Plan_Day or add Plan_Week column
+        for (const week of selectedDays) {
+            await sequelize.query(
+                `INSERT INTO tbl_Project_Sch_DT
+                 (Sch_Id, Plan_Month, Plan_Day)
+                 VALUES (?, ?, ?)`,
+                {
+                    replacements: [
+                        finalSchId,
+                        planDetails?.Plan_Month || null,
+                        week  // Storing week in Plan_Day as fallback
+                    ],
+                    type: QueryTypes.INSERT,
+                    transaction
+                }
+            );
+        }
+    }
+    else if (Sch_Plan_Id === 4) { // Monthly Based
+        // Insert selected days of month
+        for (const day of selectedDays) {
+            await sequelize.query(
+                `INSERT INTO tbl_Project_Sch_DT
+                 (Sch_Id, Plan_Month, Plan_Day)
+                 VALUES (?, ?, ?)`,
+                {
+                    replacements: [
+                        finalSchId,
+                        planDetails?.Plan_Month || null,
+                        day   // Plan_Day stores the day of month
+                    ],
+                    type: QueryTypes.INSERT,
+                    transaction
+                }
+            );
+        }
+    }
+}
+            }
+
+            
             if (Sch_Start_Date && Sch_End_Date) {
                 const startDate = new Date(Sch_Start_Date);
                 const endDate = new Date(Sch_End_Date);
                 
-                // Generate all dates between start and end date
-                const allDates = getDatesBetween(startDate, endDate);
-                
-                // Filter dates based on selected days (if any)
-                const datesToInsert = selectedDays && selectedDays.length > 0
-                    ? allDates.filter(date => selectedDays.includes(getDayOfWeek(date)))
-                    : allDates;
-
-                // Handle tbl_Project_Sch_DT insertion based on plan type
-                if (Sch_Plan_Id !== 1 && Sch_Plan_Id !== 5) { // Not for Time Based or Specific Day
-                    for (const date of datesToInsert) {
-                        const planDetails = calculatePlanDetails(date, Sch_Plan_Id);
-                        
-                        await sequelize.query(
-                            `INSERT INTO tbl_Project_Sch_DT
-                             (Sch_Id, Plan_Week, Plan_Month, Plan_Day)
-                             VALUES (?, ?, ?, ?)`,
-                            {
-                                replacements: [
-                                    finalSchId,
-                                    planDetails.week,
-                                    planDetails.month,
-                                    planDetails.day
-                                ],
-                                type: QueryTypes.INSERT,
-                                transaction
-                            }
-                        );
-                    }
-                }
-
-                // Handle tbl_Project_Sch_Task_DT for all plan types
-                const maxAIdResult = await sequelize.query<MaxAIdResult>(
-                    `SELECT 
-                        ISNULL(MAX(A_Id), 0) as CurrentMaxAId,
-                        ISNULL(MAX(A_Id), 0) + 1 as NextAId 
-                     FROM tbl_Project_Sch_Task_DT`,
-                    { 
-                        type: QueryTypes.SELECT,
-                        transaction 
-                    }
+                // Generate task dates based on plan type
+                const taskDates = generateTaskDates(
+                    startDate, 
+                    endDate, 
+                    Sch_Plan_Id, 
+                    selectedDays || [],
+                    planDetails
                 );
 
-                let nextAId = maxAIdResult[0]?.NextAId || 1;
+                // Insert into tbl_Project_Sch_Task_DT
+                for (const date of taskDates) {
+                    // Get next A_Id
+                    const maxAIdResult = await sequelize.query<{ NextId: number }>(
+                        `SELECT ISNULL(MAX(A_Id), 0) + 1 as NextId 
+                         FROM tbl_Project_Sch_Task_DT`,
+                        { 
+                            type: QueryTypes.SELECT,
+                            transaction 
+                        }
+                    );
 
-                // Insert into tbl_Project_Sch_Task_DT with generated A_Id
-                for (const date of datesToInsert) {
-                    // Check if this A_Id already exists (rare case)
+                    let nextAId = maxAIdResult[0]?.NextId || 1;
+
+                    // Check if ID exists and get next available if needed
                     const aIdCheck = await sequelize.query<CheckResult>(
                         `SELECT 1 FROM tbl_Project_Sch_Task_DT WHERE A_Id = ?`,
                         { 
@@ -587,7 +621,6 @@ export const createSchedule = async (req: Request, res: Response) => {
                         }
                     );
 
-                    // If ID exists, find the next available ID
                     if (aIdCheck.length > 0) {
                         const availableAIdResult = await sequelize.query<{ AvailableId: number }>(
                             `SELECT TOP 1 
@@ -620,15 +653,13 @@ export const createSchedule = async (req: Request, res: Response) => {
                             transaction
                         }
                     );
-                    
-                    nextAId++; // Increment for next record
                 }
             }
 
             await transaction.commit();
             transaction = null;
 
-            // Fetch and return created schedule
+          
             const data = await sequelize.query<any>(
                 `SELECT s.*, t.Task_Name, p.Plan_Type
                  FROM tbl_Project_Schedule s
@@ -641,16 +672,15 @@ export const createSchedule = async (req: Request, res: Response) => {
                 }
             );
 
-            // Fetch the task dates
+ 
             const taskDates = await sequelize.query<any>(
-                `SELECT * FROM tbl_Project_Sch_Task_DT WHERE Sch_Id = ?`,
+                `SELECT * FROM tbl_Project_Sch_Task_DT WHERE Sch_Id = ? ORDER BY Task_Work_Date`,
                 { 
                     replacements: [finalSchId], 
                     type: QueryTypes.SELECT
                 }
             );
 
-            // Fetch the plan details (if any)
             const planDt = await sequelize.query<any>(
                 `SELECT * FROM tbl_Project_Sch_DT WHERE Sch_Id = ?`,
                 { 
@@ -713,55 +743,91 @@ function getDatesBetween(startDate: Date, endDate: Date): Date[] {
     return dates;
 }
 
-
 function getDayOfWeek(date: Date): number {
     const day = date.getDay();
-    return day === 0 ? 7 : day; 
+  
+    return day === 0 ? 7 : day;
 }
-
 
 function calculatePlanDetails(date: Date, planId: number): { week: number | null, month: number | null, day: number | null } {
     const dayOfWeek = getDayOfWeek(date);
+    const dayOfMonth = date.getDate();
+    const weekOfMonth = getWeekOfMonth(date);
+    const month = date.getMonth() + 1;
     
     switch (planId) {
         case 2: 
-            return {
-                week: null,
-                month: null,
-                day: dayOfWeek
-            };
-            
+            return { week: null, month: null, day: dayOfWeek };
         case 3: 
-            return {
-                week: getWeekOfMonth(date),
-                month: null,
-                day: dayOfWeek
-            };
-            
-        case 4:
-            return {
-                week: getWeekOfMonth(date),
-                month: date.getMonth() + 1,
-                day: dayOfWeek
-            };
-            
-        default: 
-            return {
-                week: null,
-                month: null,
-                day: null
-            };
+            return { week: weekOfMonth, month: month, day: null };
+        case 4: 
+            return { week: null, month: month, day: dayOfMonth };
+        default:
+            return { week: null, month: null, day: null };
     }
+}
+
+
+function generateTaskDates(
+    startDate: Date, 
+    endDate: Date, 
+    planId: number, 
+    selectedDays: number[],
+    planDetails?: any
+): Date[] {
+    const dates: Date[] = [];
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= endDate) {
+        let includeDate = false;
+        
+        switch (planId) {
+            case 1: 
+                includeDate = true;
+                break;
+                
+            case 2: 
+                const dayOfWeek = getDayOfWeek(currentDate);
+                includeDate = selectedDays.includes(dayOfWeek);
+                break;
+                
+            case 3:
+                const weekOfMonth = getWeekOfMonth(currentDate);
+                includeDate = selectedDays.includes(weekOfMonth);
+                break;
+                
+            case 4: 
+                const dayOfMonth = currentDate.getDate();
+                includeDate = selectedDays.includes(dayOfMonth);
+                break;
+                
+            case 5: 
+                includeDate = currentDate.toDateString() === startDate.toDateString();
+                break;
+                
+            default:
+                includeDate = true;
+        }
+        
+        if (includeDate) {
+            dates.push(new Date(currentDate));
+        }
+        
+
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return dates;
 }
 
 
 function getWeekOfMonth(date: Date): number {
     const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const firstDayOfMonth = startOfMonth.getDay(); 
     const dayOfMonth = date.getDate();
-    const firstDayOfWeek = startOfMonth.getDay(); 
     
 
-    const adjustedFirstDay = firstDayOfWeek === 0 ? 7 : firstDayOfWeek;
+    const adjustedFirstDay = firstDayOfMonth === 0 ? 7 : firstDayOfMonth;
     
     return Math.ceil((dayOfMonth + adjustedFirstDay - 1) / 7);
 }
@@ -795,7 +861,7 @@ export const updateSchedule = async (req: Request, res: Response) => {
         const scheduleId = idCheck.data!.id;
         const updateData = bodyCheck.data!;
 
-        const formatDateForSQL = (date: Date | string | null): string | null => {
+        const formatDateForSQL = (date: Date | string | null | undefined): string | null => {
             if (!date) return null;
             const d = date instanceof Date ? date : new Date(date);
             return d.toISOString().split('T')[0];
@@ -810,7 +876,7 @@ export const updateSchedule = async (req: Request, res: Response) => {
             NextAId: number;
         }
 
-       
+        // Check if schedule exists
         const exists = await sequelize.query(
             `SELECT 1 FROM tbl_Project_Schedule 
              WHERE Sch_Id = ? AND Sch_Del_Flag = 0`,
@@ -821,102 +887,274 @@ export const updateSchedule = async (req: Request, res: Response) => {
             return notFound(res, 'Project schedule not found');
         }
 
-       
-        const dupCheck = await sequelize.query(
-            `SELECT 1 FROM tbl_Project_Schedule 
-             WHERE UPPER(Sch_No) = UPPER(?) AND Sch_Id != ? AND Sch_Del_Flag = 0`,
-            { 
-                replacements: [updateData.Sch_No, scheduleId], 
-                type: 'SELECT' 
-            }
-        ) as any[];
+        // Duplicate check for Sch_No (if provided)
+        if (updateData.Sch_No) {
+            const dupCheck = await sequelize.query(
+                `SELECT 1 FROM tbl_Project_Schedule 
+                 WHERE UPPER(Sch_No) = UPPER(?) AND Sch_Id != ? AND Sch_Del_Flag = 0`,
+                { 
+                    replacements: [updateData.Sch_No, scheduleId], 
+                    type: 'SELECT' 
+                }
+            ) as any[];
 
-        if (dupCheck.length) {
-            return res.status(409).json({
-                success: false,
-                message: 'Schedule number already exists'
-            });
+            if (dupCheck.length) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'Schedule number already exists'
+                });
+            }
         }
 
-        const planTypeResult = await sequelize.query<{ Plan_Type: string }>(
-            `SELECT Plan_Type FROM tbl_Sch_Plan WHERE Plan_Id = ?`,
-            { 
-                replacements: [updateData.Sch_Plan_Id], 
-                type: QueryTypes.SELECT 
-            }
-        );
-
-        const planType = planTypeResult[0]?.Plan_Type || '';
+        // Get plan type information if Sch_Plan_Id is provided
+        let planType = '';
+        if (updateData.Sch_Plan_Id) {
+            const planTypeResult = await sequelize.query<{ Plan_Type: string }>(
+                `SELECT Plan_Type FROM tbl_Sch_Plan WHERE Plan_Id = ?`,
+                { 
+                    replacements: [updateData.Sch_Plan_Id], 
+                    type: QueryTypes.SELECT 
+                }
+            );
+            planType = planTypeResult[0]?.Plan_Type || '';
+        }
 
         transaction = await sequelize.transaction();
 
         try {
-            const updateQuery = `
-                UPDATE tbl_Project_Schedule 
-                SET Sch_No = ?, Sch_Date = ?, Task_Id = ?, 
-                    Sch_Type_Id = ?, Sch_Plan_Id = ?, 
-                    Sch_Start_Date = ?, Sch_End_Date = ?,
-                    Task_Sch_Timer_Based = ?, 
-                    Sch_Est_Start_Time = ?, Sch_Est_End_Time = ?,
-                    Task_Sch_Duaration = ?, Sch_Status = ?,
-                    Update_By = ?, Update_Date = GETDATE()
-                WHERE Sch_Id = ?
-            `;
+            // Build dynamic update query based on provided fields
+            const updateFields: string[] = [];
+            const updateValues: any[] = [];
 
-            await sequelize.query(updateQuery, {
-                replacements: [
-                    updateData.Sch_No,
-                    formatDateForSQL(updateData.Sch_Date),
-                    updateData.Task_Id,
-                    updateData.Sch_Type_Id,
-                    updateData.Sch_Plan_Id,
-                    formatDateForSQL(updateData.Sch_Start_Date),
-                    formatDateForSQL(updateData.Sch_End_Date),
-                    updateData.Task_Sch_Timer_Based ? 1 : 0,
-                    updateData.Sch_Est_Start_Time,
-                    updateData.Sch_Est_End_Time,
-                    updateData.Task_Sch_Duaration,
-                    updateData.Sch_Status,
-                    updateData.Update_By,
-                    scheduleId
-                ],
-                transaction
-            });
+            if (updateData.Sch_No !== undefined) {
+                updateFields.push('Sch_No = ?');
+                updateValues.push(updateData.Sch_No);
+            }
+            if (updateData.Sch_Date !== undefined) {
+                updateFields.push('Sch_Date = ?');
+                updateValues.push(formatDateForSQL(updateData.Sch_Date));
+            }
+            if (updateData.Task_Id !== undefined) {
+                updateFields.push('Task_Id = ?');
+                updateValues.push(updateData.Task_Id);
+            }
+            if (updateData.Sch_Type_Id !== undefined) {
+                updateFields.push('Sch_Type_Id = ?');
+                updateValues.push(updateData.Sch_Type_Id);
+            }
+            if (updateData.Sch_Plan_Id !== undefined) {
+                updateFields.push('Sch_Plan_Id = ?');
+                updateValues.push(updateData.Sch_Plan_Id);
+            }
+            if (updateData.Sch_Start_Date !== undefined) {
+                updateFields.push('Sch_Start_Date = ?');
+                updateValues.push(formatDateForSQL(updateData.Sch_Start_Date));
+            }
+            if (updateData.Sch_End_Date !== undefined) {
+                updateFields.push('Sch_End_Date = ?');
+                updateValues.push(formatDateForSQL(updateData.Sch_End_Date));
+            }
+            if (updateData.Task_Sch_Timer_Based !== undefined) {
+                updateFields.push('Task_Sch_Timer_Based = ?');
+                updateValues.push(updateData.Task_Sch_Timer_Based ? 1 : 0);
+            }
+            if (updateData.Sch_Est_Start_Time !== undefined) {
+                updateFields.push('Sch_Est_Start_Time = ?');
+                updateValues.push(updateData.Sch_Est_Start_Time);
+            }
+            if (updateData.Sch_Est_End_Time !== undefined) {
+                updateFields.push('Sch_Est_End_Time = ?');
+                updateValues.push(updateData.Sch_Est_End_Time);
+            }
+            if (updateData.Task_Sch_Duaration !== undefined) {
+                updateFields.push('Task_Sch_Duaration = ?');
+                updateValues.push(updateData.Task_Sch_Duaration);
+            }
+            if (updateData.Sch_Status !== undefined) {
+                updateFields.push('Sch_Status = ?');
+                updateValues.push(updateData.Sch_Status);
+            }
+            if (updateData.Update_By !== undefined) {
+                updateFields.push('Update_By = ?');
+                updateValues.push(updateData.Update_By);
+            }
 
-            await sequelize.query(
-                `DELETE FROM tbl_Project_Sch_DT WHERE Sch_Id = ?`,
-                { replacements: [scheduleId], transaction }
-            );
+            // Always update Update_Date
+            updateFields.push('Update_Date = GETDATE()');
 
-            await sequelize.query(
-                `DELETE FROM tbl_Project_Sch_Task_DT WHERE Sch_Id = ?`,
-                { replacements: [scheduleId], transaction }
-            );
+            if (updateFields.length > 0) {
+                const updateQuery = `
+                    UPDATE tbl_Project_Schedule 
+                    SET ${updateFields.join(', ')}
+                    WHERE Sch_Id = ?
+                `;
 
-            if (updateData.Sch_Start_Date && updateData.Sch_End_Date) {
-                const startDate = new Date(updateData.Sch_Start_Date);
-                const endDate = new Date(updateData.Sch_End_Date);
+                // Add scheduleId to values array
+                updateValues.push(scheduleId);
+
+                await sequelize.query(updateQuery, {
+                    replacements: updateValues,
+                    transaction
+                });
+            }
+
+            // Delete existing plan details and task dates only if we're updating the schedule plan or dates
+            const shouldRegenerateDetails = 
+                updateData.Sch_Plan_Id !== undefined || 
+                updateData.Sch_Start_Date !== undefined || 
+                updateData.Sch_End_Date !== undefined ||
+                updateData.selectedDays !== undefined;
+
+            if (shouldRegenerateDetails) {
+                await sequelize.query(
+                    `DELETE FROM tbl_Project_Sch_DT WHERE Sch_Id = ?`,
+                    { replacements: [scheduleId], transaction }
+                );
+
+                await sequelize.query(
+                    `DELETE FROM tbl_Project_Sch_Task_DT WHERE Sch_Id = ?`,
+                    { replacements: [scheduleId], transaction }
+                );
+
+                // Handle plan details insertion based on Plan_Id
+                const planId = updateData.Sch_Plan_Id !== undefined ? updateData.Sch_Plan_Id : 
+                               (await getCurrentPlanId(scheduleId));
                 
-                const allDates = getDatesBetween(startDate, endDate);
-                
-                const datesToInsert = updateData.selectedDays && updateData.selectedDays.length > 0
-                    ? allDates.filter(date => updateData.selectedDays!.includes(getDayOfWeek(date)))
-                    : allDates;
+                const startDate = updateData.Sch_Start_Date !== undefined ? updateData.Sch_Start_Date :
+                                  (await getCurrentStartDate(scheduleId));
+                const endDate = updateData.Sch_End_Date !== undefined ? updateData.Sch_End_Date :
+                                (await getCurrentEndDate(scheduleId));
+                const selectedDaysArray = updateData.selectedDays || [];
 
-                if (updateData.Sch_Plan_Id !== 1 && updateData.Sch_Plan_Id !== 5) { 
-                    for (const date of datesToInsert) {
-                        const planDetails = calculatePlanDetails(date, updateData.Sch_Plan_Id);
-                        
+                if (startDate && endDate) {
+                    const startDateObj = new Date(startDate);
+                    const endDateObj = new Date(endDate);
+                    
+                    // Generate task dates based on plan type
+                    const taskDates = generateTaskDates(
+                        startDateObj, 
+                        endDateObj, 
+                        planId, 
+                        selectedDaysArray,
+                        updateData.planDetails
+                    );
+
+                 
+                    if (planId !== 1 && planId !== 5 && selectedDaysArray.length > 0) {
+                        if (planId === 2) {
+                            for (const day of selectedDaysArray) {
+                                await sequelize.query(
+                                    `INSERT INTO tbl_Project_Sch_DT
+                                     (Sch_Id, Plan_Month, Plan_Day)
+                                     VALUES (?, ?, ?)`,
+                                    {
+                                        replacements: [
+                                            scheduleId,
+                                            null,
+                                            day
+                                        ],
+                                        type: QueryTypes.INSERT,
+                                        transaction
+                                    }
+                                );
+                            }
+                        } 
+                        else if (planId === 3) {
+                            for (const week of selectedDaysArray) {
+                                await sequelize.query(
+                                    `INSERT INTO tbl_Project_Sch_DT
+                                     (Sch_Id, Plan_Month, Plan_Day)
+                                     VALUES (?, ?, ?)`,
+                                    {
+                                        replacements: [
+                                            scheduleId,
+                                            updateData.planDetails?.Plan_Month || null,
+                                            null
+                                        ],
+                                        type: QueryTypes.INSERT,
+                                        transaction
+                                    }
+                                );
+                            }
+                        }
+                        else if (planId === 4) { 
+                            for (const day of selectedDaysArray) {
+                                await sequelize.query(
+                                    `INSERT INTO tbl_Project_Sch_DT
+                                     (Sch_Id, Plan_Month, Plan_Day)
+                                     VALUES (?, ?, ?)`,
+                                    {
+                                        replacements: [
+                                            scheduleId,
+                                            updateData.planDetails?.Plan_Month || null,
+                                            day
+                                        ],
+                                        type: QueryTypes.INSERT,
+                                        transaction
+                                    }
+                                );
+                            }
+                        }
+                    }
+
+     
+                    for (const date of taskDates) {
+                   
+                        const maxAIdResult = await sequelize.query<{ NextId: number }>(
+                            `SELECT ISNULL(MAX(A_Id), 0) + 1 as NextId 
+                             FROM tbl_Project_Sch_Task_DT`,
+                            { 
+                                type: QueryTypes.SELECT,
+                                transaction 
+                            }
+                        );
+
+                        let nextAId = maxAIdResult[0]?.NextId || 1;
+
+                       
+                        const aIdCheck = await sequelize.query<CheckResult>(
+                            `SELECT 1 FROM tbl_Project_Sch_Task_DT WHERE A_Id = ?`,
+                            { 
+                                replacements: [nextAId], 
+                                type: QueryTypes.SELECT,
+                                transaction
+                            }
+                        );
+
+                        if (aIdCheck.length > 0) {
+                            const availableAIdResult = await sequelize.query<{ AvailableId: number }>(
+                                `SELECT TOP 1 
+                                    t1.A_Id + 1 as A_Id
+                                 FROM tbl_Project_Sch_Task_DT t1
+                                 LEFT JOIN tbl_Project_Sch_Task_DT t2 ON t1.A_Id + 1 = t2.A_Id
+                                 WHERE t2.A_Id IS NULL
+                                 ORDER BY t1.A_Id`,
+                                { 
+                                    type: QueryTypes.SELECT,
+                                    transaction
+                                }
+                            );
+                            nextAId = availableAIdResult[0]?.AvailableId || nextAId + 1;
+                        }
+
+                        const estStartTime = updateData.Sch_Est_Start_Time !== undefined ? 
+                                            updateData.Sch_Est_Start_Time : 
+                                            await getCurrentEstStartTime(scheduleId);
+                        const estEndTime = updateData.Sch_Est_End_Time !== undefined ? 
+                                          updateData.Sch_Est_End_Time : 
+                                          await getCurrentEstEndTime(scheduleId);
+
                         await sequelize.query(
-                            `INSERT INTO tbl_Project_Sch_DT
-                             (Sch_Id, Plan_Week, Plan_Month, Plan_Day)
-                             VALUES (?, ?, ?, ?)`,
+                            `INSERT INTO tbl_Project_Sch_Task_DT
+                             (A_Id, Sch_Id, Task_Work_Date, Task_Start_Time, Task_End_Time)
+                             VALUES (?, ?, ?, ?, ?)`,
                             {
                                 replacements: [
+                                    nextAId,
                                     scheduleId,
-                                    planDetails.week,
-                                    planDetails.month,
-                                    planDetails.day
+                                    formatDateForSQL(date),
+                                    estStartTime,
+                                    estEndTime,
                                 ],
                                 type: QueryTypes.INSERT,
                                 transaction
@@ -924,69 +1162,9 @@ export const updateSchedule = async (req: Request, res: Response) => {
                         );
                     }
                 }
-
-                const maxAIdResult = await sequelize.query<MaxAIdResult>(
-                    `SELECT 
-                        ISNULL(MAX(A_Id), 0) as CurrentMaxAId,
-                        ISNULL(MAX(A_Id), 0) + 1 as NextAId 
-                     FROM tbl_Project_Sch_Task_DT`,
-                    { 
-                        type: QueryTypes.SELECT,
-                        transaction 
-                    }
-                );
-
-                let nextAId = maxAIdResult[0]?.NextAId || 1;
-
-                for (const date of datesToInsert) {
-                    const aIdCheck = await sequelize.query<CheckResult>(
-                        `SELECT 1 FROM tbl_Project_Sch_Task_DT WHERE A_Id = ?`,
-                        { 
-                            replacements: [nextAId], 
-                            type: QueryTypes.SELECT,
-                            transaction
-                        }
-                    );
-
-                    if (aIdCheck.length > 0) {
-                        const availableAIdResult = await sequelize.query<{ AvailableId: number }>(
-                            `SELECT TOP 1 
-                                t1.A_Id + 1 as A_Id
-                             FROM tbl_Project_Sch_Task_DT t1
-                             LEFT JOIN tbl_Project_Sch_Task_DT t2 ON t1.A_Id + 1 = t2.A_Id
-                             WHERE t2.A_Id IS NULL
-                             ORDER BY t1.A_Id`,
-                            { 
-                                type: QueryTypes.SELECT,
-                                transaction
-                            }
-                        );
-                        nextAId = availableAIdResult[0]?.AvailableId || nextAId + 1;
-                    }
-
-                    await sequelize.query(
-                        `INSERT INTO tbl_Project_Sch_Task_DT
-                         (A_Id, Sch_Id, Task_Work_Date, Task_Start_Time, Task_End_Time)
-                         VALUES (?, ?, ?, ?, ?)`,
-                        {
-                            replacements: [
-                                nextAId,
-                                scheduleId,
-                                formatDateForSQL(date),
-                                updateData.Sch_Est_Start_Time,
-                                updateData.Sch_Est_End_Time
-                            ],
-                            type: QueryTypes.INSERT,
-                            transaction
-                        }
-                    );
-                    
-                    nextAId++; 
-                }
             }
 
             await transaction.commit();
-            
             transaction = null;
 
             const data = await sequelize.query<any>(
@@ -1002,14 +1180,13 @@ export const updateSchedule = async (req: Request, res: Response) => {
             );
 
             const taskDates = await sequelize.query<any>(
-                `SELECT * FROM tbl_Project_Sch_Task_DT WHERE Sch_Id = ?`,
+                `SELECT * FROM tbl_Project_Sch_Task_DT WHERE Sch_Id = ? ORDER BY Task_Work_Date`,
                 { 
                     replacements: [scheduleId], 
                     type: QueryTypes.SELECT
                 }
             );
 
-   
             const planDt = await sequelize.query<any>(
                 `SELECT * FROM tbl_Project_Sch_DT WHERE Sch_Id = ?`,
                 { 
@@ -1028,7 +1205,6 @@ export const updateSchedule = async (req: Request, res: Response) => {
             
         } catch (error) {
             console.error('Error during transaction operations:', error);
-            
 
             if (transaction && !transaction.finished) {
                 try {
@@ -1037,8 +1213,6 @@ export const updateSchedule = async (req: Request, res: Response) => {
                     console.error('Error during transaction rollback:', rollbackError);
                 }
             }
-            
-
             throw error;
         }
         
@@ -1054,6 +1228,46 @@ export const updateSchedule = async (req: Request, res: Response) => {
     }
 };
 
+
+async function getCurrentPlanId(scheduleId: number): Promise<number> {
+    const result = await sequelize.query(
+        `SELECT Sch_Plan_Id FROM tbl_Project_Schedule WHERE Sch_Id = ?`,
+        { replacements: [scheduleId], type: QueryTypes.SELECT }
+    ) as any[];
+    return result[0]?.Sch_Plan_Id || 1;
+}
+
+async function getCurrentStartDate(scheduleId: number): Promise<Date | null> {
+    const result = await sequelize.query(
+        `SELECT Sch_Start_Date FROM tbl_Project_Schedule WHERE Sch_Id = ?`,
+        { replacements: [scheduleId], type: QueryTypes.SELECT }
+    ) as any[];
+    return result[0]?.Sch_Start_Date || null;
+}
+
+async function getCurrentEndDate(scheduleId: number): Promise<Date | null> {
+    const result = await sequelize.query(
+        `SELECT Sch_End_Date FROM tbl_Project_Schedule WHERE Sch_Id = ?`,
+        { replacements: [scheduleId], type: QueryTypes.SELECT }
+    ) as any[];
+    return result[0]?.Sch_End_Date || null;
+}
+
+async function getCurrentEstStartTime(scheduleId: number): Promise<string | null> {
+    const result = await sequelize.query(
+        `SELECT Sch_Est_Start_Time FROM tbl_Project_Schedule WHERE Sch_Id = ?`,
+        { replacements: [scheduleId], type: QueryTypes.SELECT }
+    ) as any[];
+    return result[0]?.Sch_Est_Start_Time || null;
+}
+
+async function getCurrentEstEndTime(scheduleId: number): Promise<string | null> {
+    const result = await sequelize.query(
+        `SELECT Sch_Est_End_Time FROM tbl_Project_Schedule WHERE Sch_Id = ?`,
+        { replacements: [scheduleId], type: QueryTypes.SELECT }
+    ) as any[];
+    return result[0]?.Sch_Est_End_Time || null;
+}
 
 export const updateScheduleStatus = async (req: Request, res: Response) => {
     try {

@@ -124,6 +124,10 @@ const router = express.Router();
  *         Task_End_Time:
  *           type: string
  *           format: time
+ *         Task_Status:
+ *           type: string
+ *           enum: ["Pending", "In Progress", "Completed"]
+ *           example: "Pending"
  *
  *     SchedulePlanDetail:
  *       type: object
@@ -134,7 +138,7 @@ const router = express.Router();
  *           type: integer
  *           nullable: true
  *           minimum: 1
- *           maximum: 52
+ *           maximum: 5
  *           example: 3
  *         Plan_Month:
  *           type: integer
@@ -146,20 +150,22 @@ const router = express.Router();
  *           type: integer
  *           nullable: true
  *           minimum: 1
- *           maximum: 7
- *           example: 1
+ *           maximum: 31
+ *           example: 15
  *
  *     CompleteSchedule:
  *       type: object
  *       properties:
  *         schedule:
  *           $ref: '#/components/schemas/ProjectSchedule'
- *         scheduleDetails:
+ *         taskDates:
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/ScheduleDetail'
  *         planDetails:
- *           $ref: '#/components/schemas/SchedulePlanDetail'
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/SchedulePlanDetail'
  *
  *     ScheduleCreate:
  *       type: object
@@ -169,7 +175,11 @@ const router = express.Router();
  *         - Task_Id
  *         - Sch_Type_Id
  *         - Sch_Plan_Id
- *         - Sch_Status
+ *         - Sch_Start_Date
+ *         - Sch_End_Date
+ *         - Sch_Est_Start_Time
+ *         - Sch_Est_End_Time
+ *         - Entry_By
  *       properties:
  *         Sch_No:
  *           type: string
@@ -191,25 +201,21 @@ const router = express.Router();
  *         Sch_Start_Date:
  *           type: string
  *           format: date
- *           nullable: true
  *           example: "2024-01-20"
  *         Sch_End_Date:
  *           type: string
  *           format: date
- *           nullable: true
- *           example: "2024-01-25"
+ *           example: "2024-02-20"
  *         Task_Sch_Timer_Based:
  *           type: boolean
  *           default: false
  *         Sch_Est_Start_Time:
  *           type: string
  *           format: time
- *           nullable: true
  *           example: "09:00"
  *         Sch_Est_End_Time:
  *           type: string
  *           format: time
- *           nullable: true
  *           example: "18:00"
  *         Task_Sch_Duaration:
  *           type: integer
@@ -218,7 +224,7 @@ const router = express.Router();
  *         Sch_Status:
  *           type: string
  *           enum: ["Active", "Completed", "Cancelled", "On Hold"]
- *           example: "Active"
+ *           default: "Active"
  *         Entry_By:
  *           type: integer
  *           example: 1
@@ -234,16 +240,14 @@ const router = express.Router();
  *             Plan_Day:
  *               type: integer
  *               nullable: true
+ *         selectedDays:
+ *           type: array
+ *           items:
+ *             type: integer
+ *           example: [1, 3, 5]
  *
  *     ScheduleUpdate:
  *       type: object
- *       required:
- *         - Sch_No
- *         - Sch_Date
- *         - Task_Id
- *         - Sch_Type_Id
- *         - Sch_Plan_Id
- *         - Sch_Status
  *       properties:
  *         Sch_No:
  *           type: string
@@ -308,11 +312,16 @@ const router = express.Router();
  *             Plan_Day:
  *               type: integer
  *               nullable: true
+ *         selectedDays:
+ *           type: array
+ *           items:
+ *             type: integer
  *
  *     StatusUpdate:
  *       type: object
  *       required:
  *         - status
+ *         - Update_By
  *       properties:
  *         status:
  *           type: string
@@ -715,9 +724,9 @@ router.get('/:id', getScheduleById);
 
 /**
  * @swagger
- * /api/masters/projectSchedule/{id}:
+ * /api/masters/projectSchedule/{id}/details:
  *   get:
- *     summary: Get schedule details by schedule ID
+ *     summary: Get schedule task details by schedule ID
  *     description: Retrieve all task details for a specific schedule
  *     tags: [Project Schedule]
  *     parameters:
@@ -747,7 +756,7 @@ router.get('/:id', getScheduleById);
  *       500:
  *         description: Internal server error
  */
-router.get('/:id', getScheduleDetails);
+router.get('/:id/details', getScheduleDetails);
 
 /**
  * @swagger
@@ -779,11 +788,7 @@ router.get('/:id', getScheduleDetails);
  *                   type: string
  *                   example: "Project schedule created successfully"
  *                 data:
- *                   type: object
- *                   properties:
- *                     Sch_Id:
- *                       type: integer
- *                       example: 1
+ *                   $ref: '#/components/schemas/CompleteSchedule'
  *       400:
  *         description: Validation error
  *         content:
@@ -925,6 +930,8 @@ router.put('/:id',
  *                 message:
  *                   type: string
  *                   example: "Schedule status updated successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/ProjectSchedule'
  *       400:
  *         description: Validation error
  *       401:

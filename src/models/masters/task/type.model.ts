@@ -24,7 +24,7 @@ export const taskCreateSchema = z.object({
   Task_Name: z.string().min(1, 'Task name is required').max(255, 'Task name must be 255 characters or less'),
   Task_Desc: z.string().optional().nullable(),
   Company_Id: z.number().optional().nullable(),
- Task_Type_Id: z.number().min(1, 'Valid task group ID is required'),
+  Task_Type_Id: z.number().min(1, 'Valid task group ID is required'),
   Project_Id: z.number().optional().nullable(),
   
 });

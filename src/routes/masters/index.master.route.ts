@@ -12,7 +12,8 @@ import LeavetypeRoutes from './leaveType.route';
 import ProjectEmployee from './employeeinvolved.route';
 import employees from './employeemaster.route';
 import projectSchedule from './projectSchedule.route';
-
+import taskAssign from './taskAssign.route';
+import projectScheduleEmp from './projectScheduleEmp.route'
 const router = express.Router();
 
 
@@ -29,6 +30,8 @@ router.use('/company',taskRoutes)
 router.use('/Leavetype',LeavetypeRoutes)
 router.use('/employees',employees)
 router.use('/projectSchedule',projectSchedule)
+router.use('/taskAssign',taskAssign)
+router.use('/projectScheduleEmp',projectScheduleEmp)
 
 
 export default router;

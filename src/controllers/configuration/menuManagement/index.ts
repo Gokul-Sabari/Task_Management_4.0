@@ -150,7 +150,7 @@ const updateMenu = async (req: Request, res: Response) => {
     try {
         const payload = parseMenuPayload(req.body);
 
-    
+        // ensure exists
         const exists = await new sql.Request()
             .input("MenuId", sql.Int, id)
             .query(`SELECT 1 FROM ${appMenuTable} WHERE MenuId = @MenuId`);

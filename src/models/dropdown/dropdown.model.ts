@@ -222,48 +222,6 @@ export const getCompany = async (activeOnly: boolean = true): Promise<DropdownIt
     }
 };
 
-export const getTasksByProject = async (projectId: number | string, activeOnly: boolean = true): Promise<DropdownItem[]> => {
-    try {
-     
-        
-        const projectIdNum = typeof projectId === 'string' ? parseInt(projectId, 10) : projectId;
-        
-        if (isNaN(projectIdNum)) {
-            console.error('Invalid project ID:', projectId);
-            return [];
-        }
-
-        const query = `
-            SELECT 
-                tm.Task_Id ,
-                tm.Task_Name
-            FROM tbl_Task tm
-            WHERE tm.Project_Id = :projectId
-        `;
-
-        const tasks = await sequelize.query<{ value: number; label: string }>(
-            query,
-            {
-                replacements: { projectId: projectIdNum },
-                type: QueryTypes.SELECT,
-                raw: true
-            }
-        );
-
-     
-        return tasks
-            // .filter(task => task.label !== null && task.label !== undefined)
-            // .map(task => ({
-            //     value: task.value,
-            //     label: task.label || ''
-            // }));
-
-    } catch (error) {
-        console.error('Error in getTasksByProject:', error);
-        throw error;
-    }
-};
-
 export default {
     getProjectHeads,
     getProjectStatus,
@@ -272,6 +230,5 @@ export default {
     getTasks,
     getProjects,
     getAllDropdowns,
-    getCompany,
-    getTasksByProject
+    getCompany
 };

@@ -4,7 +4,7 @@ import { dataFound, noData, invalidInput, servError } from '../../responseObject
 import { 
     AttendanceResult,
     AttendanceSummary
-} from '../../models/Attendance/employeeattentance/fingerPrintAttendance.model';
+} from '../../models/Attendance/Fingerprint/fingerPrintAttendance.model';
 
 const formatDateToString = (date: Date): string => {
     const year = date.getFullYear();

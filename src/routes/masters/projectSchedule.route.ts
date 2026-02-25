@@ -9,11 +9,11 @@ import {
     getScheduleDropdown,    
     updateSchedule,
     getSchedulePlansDropdown,
-    getTasksDropdown,
+    getTasksDropdown, 
     getScheduleTypesDropdown,
     getScheduleDetails,
     updateScheduleStatus
-} from '../../controllers/masters/taskManagement/projectScedule.controller';
+} from '../../controllers/masters/projectScedule.controller';
 
 const router = express.Router();
 

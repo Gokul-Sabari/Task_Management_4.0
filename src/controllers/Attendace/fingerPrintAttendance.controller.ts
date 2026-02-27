@@ -5,6 +5,9 @@ import {
     AttendanceResult,
     AttendanceSummary
 } from '../../models/Attendance/Fingerprint/fingerPrintAttendance.model';
+import getImage from '../../middleware/getImageIfExist'; // Import the image utility
+
+
 
 const formatDateToString = (date: Date): string => {
     const year = date.getFullYear();
@@ -554,6 +557,130 @@ const getMultipleEmployeesAttendance = async (
     return result.recordset;
 };
 
+export const getAttendanceHistory = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const { UserId, UserTypeID, Branch_Id } = req.query;
+        
+        const From = req.query?.From ? req.query.From as string : formatDateToString(new Date());
+        const To = req.query?.To ? req.query.To as string : formatDateToString(new Date());
+
+        // Validate UserTypeID
+        if (!UserId && !UserTypeID) {
+            return invalidInput(res, 'UserTypeID is required');
+        }
+
+        // Validate dates
+        if (!isValidDate(From) || !isValidDate(To)) {
+            return invalidInput(res, "Invalid date format. Use YYYY-MM-DD");
+        }
+
+        // Adjust To date to include full day
+        const toDateObj = new Date(To);
+        const adjustedToDate = new Date(toDateObj);
+        adjustedToDate.setDate(adjustedToDate.getDate() + 1);
+        const adjustedToDateStr = adjustedToDate.toISOString();
+
+        const isSalesPerson = Number(UserTypeID) === 6;
+
+        // Build the query - using correct column names
+        let query = `
+            SELECT
+                a.Id,
+                a.UserId,  -- Keep as UserId (without underscore)
+                a.Start_Date,
+                a.End_Date,
+                a.IsSalesPerson,
+                a.Start_KM,
+                a.End_KM,
+                a.Latitude,
+                a.Longitude,
+                a.Start_KM_ImageName,
+                a.End_KM_ImageName,
+                a.Start_KM_ImagePath,
+                a.End_KM_ImagePath,
+                a.WorkSummary,
+                a.Active_Status,
+                u.Name AS User_Name,
+                u.BranchId
+            FROM
+                tbl_Attendance a
+                LEFT JOIN tbl_Users u ON u.id = a.UserId  -- Keep as UserId
+            WHERE
+                a.Start_Date >= @From
+                AND a.Start_Date < @To
+        `;
+
+        // Add conditional filters - using correct column names
+        if (UserId && UserId !== "0" && UserId !== "ALL") {
+            query += ` AND a.UserId = @UserId `;  // Changed back to UserId
+        }
+
+        if (Branch_Id && Branch_Id !== "0" && Branch_Id !== "ALL") {
+            query += ` AND u.BranchId = @Branch_Id `;
+        }
+
+        if (Number(UserTypeID) === 3 || Number(UserTypeID) === 6) {
+            query += ` AND a.IsSalesPerson = @IsSalesPerson `;
+        }
+
+        query += ` ORDER BY a.Start_Date DESC, a.UserId `;  // Changed back to UserId
+
+        // Create and configure request
+        const request = new sql.Request();
+        request.input("From", sql.DateTime, From);
+        request.input("To", sql.DateTime, adjustedToDateStr);
+
+        if (UserId && UserId !== "0" && UserId !== "ALL") {
+            request.input("UserId", sql.Int, Number(UserId));
+        }
+
+        if (Branch_Id && Branch_Id !== "0" && Branch_Id !== "ALL") {
+            request.input("Branch_Id", sql.Int, Number(Branch_Id));
+        }
+
+        if (Number(UserTypeID) === 3 || Number(UserTypeID) === 6) {
+            request.input("IsSalesPerson", sql.Bit, isSalesPerson ? 1 : 0);
+        }
+
+        // Execute query
+        const result = await request.query(query);
+
+        if (result.recordset && result.recordset.length > 0) {
+            // Format the data with image URLs using the getImage utility
+            const formattedData = result.recordset.map((record: any) => ({
+                Id: record.Id?.toString() || '',
+                UserId: record.UserId,  // Direct mapping since column is UserId
+                Start_Date: record.Start_Date,
+                End_Date: record.End_Date,
+                IsSalesPerson: record.IsSalesPerson || 0,
+                Start_KM: record.Start_KM,
+                End_KM: record.End_KM,
+                Latitude: record.Latitude || 'null',
+                Longitude: record.Longitude || 'null',
+                Start_KM_ImageName: record.Start_KM_ImageName,
+                End_KM_ImageName: record.End_KM_ImageName,
+                Start_KM_ImagePath: record.Start_KM_ImagePath,
+                End_KM_ImagePath: record.End_KM_ImagePath,
+                WorkSummary: record.WorkSummary,
+                Active_Status: record.Active_Status || 1,
+                User_Name: record.User_Name || '',
+                Branch_Id: record.BranchId || 0,
+                // Use the getImage utility for image URLs
+                startKmImageUrl: getImage('attendance', record.Start_KM_ImageName),
+                endKmImageUrl: getImage('attendance', record.End_KM_ImageName)
+            }));
+
+            return dataFound(res, formattedData);
+        } else {
+            return noData(res);
+        }
+
+    } catch (error) {
+        console.error('Error in getAttendanceHistory:', error);
+        return servError(error, res);
+    }
+};
+
 export default {
     getFingerprintAttendance,
     getTodayAttendance,
@@ -564,5 +691,6 @@ export default {
     getMonthlyAttendance,
     getAbsentEmployees,
     getPresentEmployees,
-    getAttendanceStats
+    getAttendanceStats,
+    getAttendanceHistory
 };

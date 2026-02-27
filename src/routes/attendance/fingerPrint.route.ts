@@ -9,7 +9,8 @@ import {
     getMonthlyAttendance,
     getAbsentEmployees,
     getPresentEmployees,
-    getAttendanceStats
+    getAttendanceStats,
+    getAttendanceHistory
 } from '../../controllers/Attendace/fingerPrintAttendance.controller'; // Make sure the file extension is correct
 // import { authenticateToken } from '../middleware/auth.middleware';
 
@@ -619,5 +620,116 @@ router.get('/present', getPresentEmployees);
  *         description: Server error
  */
 router.get('/stats', getAttendanceStats);
+
+
+
+
+/**
+ * @swagger
+ * /api/attendance/fingerprint/history:
+ *   get:
+ *     summary: Get attendance history with filters
+ *     description: Retrieve attendance history for employees with optional filters by user, branch, and user type
+ *     tags: [Fingerprint Attendance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: From
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Start date (YYYY-MM-DD). Defaults to today
+ *         example: "2026-02-01"
+ *       - in: query
+ *         name: To
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: End date (YYYY-MM-DD). Defaults to today
+ *         example: "2026-02-27"
+ *       - in: query
+ *         name: UserId
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Filter by specific user ID
+ *         example: 6
+ *       - in: query
+ *         name: UserTypeID
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: User type ID (required for isSalesPerson flag)
+ *         example: 6
+ *       - in: query
+ *         name: Branch_Id
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Filter by branch ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved attendance history
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AttendanceHistoryResponse'
+ *       400:
+ *         description: Invalid input parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Unauthorized access"
+ *       404:
+ *         description: No data found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   example: []
+ *                 message:
+ *                   type: string
+ *                   example: "No data found"
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
+ */
+router.get('/history', getAttendanceHistory);
 
 export default router;

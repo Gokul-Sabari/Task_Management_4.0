@@ -6,7 +6,7 @@
     "scripts": {
         "dev": "nodemon --watch src --ext ts,json --exec ts-node src/index.ts",
         "build": "tsc",
-        "start": "nodemon index.ts",
+        "start": "node dist/index.js",
         "import": "node import.js"
     },
     "keywords": [
@@ -51,7 +51,7 @@
         "@types/node": "^24.10.13",
         "@types/sequelize": "^4.28.20",
         "@types/swagger-ui-express": "^4.1.8",
-        "nodemon": "^3.1.14",
+        "nodemon": "^3.1.10",
         "ts-node": "^10.9.2",
         "typescript": "^5.9.3"
     }

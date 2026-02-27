@@ -25,163 +25,90 @@ const {
 /**
  * @swagger
  * components:
+ *   parameters:
+ *     fromDateQuery:
+ *       name: From
+ *       in: query
+ *       description: Start date for attendance history (YYYY-MM-DD)
+ *       required: true
+ *       schema:
+ *         type: string
+ *         format: date
+ *       example: "2024-01-01"
+ *     toDateQuery:
+ *       name: To
+ *       in: query
+ *       description: End date for attendance history (YYYY-MM-DD)
+ *       required: true
+ *       schema:
+ *         type: string
+ *         format: date
+ *       example: "2024-12-31"
+ *     userIdQuery:
+ *       name: UserId
+ *       in: query
+ *       description: Filter by user ID (optional)
+ *       required: false
+ *       schema:
+ *         type: integer
+ *       example: 123
+ *     userTypeIdQuery:
+ *       name: UserTypeID
+ *       in: query
+ *       description: User type ID (6 for salesperson, 3 for other types)
+ *       required: true
+ *       schema:
+ *         type: integer
+ *       example: 6
+ *     branchIdQuery:
+ *       name: Branch_Id
+ *       in: query
+ *       description: Filter by branch ID (optional)
+ *       required: false
+ *       schema:
+ *         type: integer
+ *       example: 10
+ *   
  *   schemas:
  *     Attendance:
  *       type: object
- *       required:
- *         - UserId
- *         - Latitude
- *         - Longitude
  *       properties:
  *         Id:
  *           type: integer
- *           readOnly: true
- *           example: 1
  *         UserId:
  *           type: integer
- *           minimum: 1
- *           example: 101
+ *         UserTypeID:
+ *           type: integer
  *         Start_Date:
  *           type: string
  *           format: date-time
- *           readOnly: true
- *           example: "2024-01-15T09:00:00.000Z"
  *         End_Date:
  *           type: string
  *           format: date-time
  *           nullable: true
- *           example: "2024-01-15T17:00:00.000Z"
  *         Latitude:
  *           type: number
  *           format: float
- *           minimum: -90
- *           maximum: 90
- *           example: 40.7128
  *         Longitude:
  *           type: number
  *           format: float
- *           minimum: -180
- *           maximum: 180
- *           example: -74.0060
  *         Active_Status:
  *           type: integer
- *           minimum: 0
- *           maximum: 1
- *           default: 1
- *           example: 1
+ *           enum: [0, 1]
  *         Work_Summary:
  *           type: string
- *           maxLength: 500
  *           nullable: true
- *           example: "Completed daily tasks and client meeting"
- *         Start_KM:
- *           type: number
- *           nullable: true
- *           example: 12500
- *         End_KM:
- *           type: number
- *           nullable: true
- *           example: 12750
- *         Start_KM_ImageName:
+ *         User_Name:
  *           type: string
- *           nullable: true
- *           example: "start_km_12345.jpg"
- *         End_KM_ImageName:
- *           type: string
- *           nullable: true
- *           example: "end_km_12345.jpg"
- *         IsSalesPerson:
+ *         Branch_Id:
  *           type: integer
- *           minimum: 0
- *           maximum: 1
- *           example: 0
- *
- *     AttendanceCreate:
- *       type: object
- *       required:
- *         - UserId
- *         - Latitude
- *         - Longitude
- *       properties:
- *         UserId:
- *           type: integer
- *           minimum: 1
- *           example: 101
- *         Start_KM:
- *           type: number
- *           example: 12500
- *         Latitude:
- *           type: number
- *           format: float
- *           minimum: -90
- *           maximum: 90
- *           example: 40.7128
- *         Longitude:
- *           type: number
- *           format: float
- *           minimum: -180
- *           maximum: 180
- *           example: -74.0060
- *
- *     AttendanceClose:
- *       type: object
- *       properties:
- *         End_KM:
- *           type: number
- *           example: 12750
- *         Description:
+ *         startKmImageUrl:
  *           type: string
- *           maxLength: 500
  *           nullable: true
- *           example: "Completed project tasks"
- *
- *   parameters:
- *     attendanceId:
- *       name: id
- *       in: path
- *       description: Attendance Record ID
- *       required: true
- *       schema:
- *         type: integer
- *         minimum: 1
- *       example: 1
- *
- *     userIdQuery:
- *       name: userId
- *       in: query
- *       description: Filter by user ID
- *       required: false
- *       schema:
- *         type: integer
- *         minimum: 1
- *
- *     fromDateQuery:
- *       name: from
- *       in: query
- *       description: Start date for filtering
- *       required: false
- *       schema:
- *         type: string
- *         format: date
- *         example: "2024-01-01"
- *
- *     toDateQuery:
- *       name: to
- *       in: query
- *       description: End date for filtering
- *       required: false
- *       schema:
- *         type: string
- *         format: date
- *         example: "2024-01-31"
- *
- *   securitySchemes:
- *     bearerAuth:
- *       type: http
- *       scheme: bearer
- *       bearerFormat: JWT
+ *         endKmImageUrl:
+ *           type: string
+ *           nullable: true
  */
-
 // ==================== ATTENDANCE ENDPOINTS ====================
 
 /**
@@ -231,6 +158,8 @@ router.get('/my/last', authenticate, getMyLastAttendance);
  *       - $ref: '#/components/parameters/fromDateQuery'
  *       - $ref: '#/components/parameters/toDateQuery'
  *       - $ref: '#/components/parameters/userIdQuery'
+ *       - $ref: '#/components/parameters/userTypeIdQuery'  # Add this reference
+ *       - $ref: '#/components/parameters/branchIdQuery'    # Add this reference
  *     responses:
  *       200:
  *         description: Successfully retrieved attendance history

@@ -289,57 +289,162 @@ const newAttendance = () => {
         }
     };
 
-    const getAttendanceHistory = async (req: Request, res: Response): Promise<Response> => {
-        const { UserId, UserTypeID, Branch_Id } = req.query;
+const getAttendanceHistory = async (req: Request, res: Response): Promise<Response> => {
+    try {
+        const { UserId, UserTypeID, Branch_Id, fromDate, toDate } = req.query;
 
-        const From = req.query?.From ? ISOString(req.query?.From as string) : ISOString();
-        const To = req.query?.To ? ISOString(req.query?.To as string) : ISOString();
-
-        if (!checkIsNumber(UserTypeID)) {
-            return invalidInput(res, 'UserTypeID is required');
+       if (!UserTypeID || !checkIsNumber(UserTypeID as string)) {
+            return invalidInput(res, 'UserTypeID is required and must be number');
         }
 
-        const isSalesPerson = Number(UserTypeID) === 6;
+        if (!UserId || !checkIsNumber(UserId as string)) {
+            return invalidInput(res, 'UserId is required and must be number');
+        }
+
+        if (!fromDate || !toDate) {
+            return invalidInput(res, 'fromDate and toDate are required');
+        }
+
+        const From = fromDate as string;
+        const To = toDate as string;
+        const userIdNum = Number(UserId);
+        const userTypeIdNum = Number(UserTypeID);
+        const isSalesPerson = userTypeIdNum === 6 ? 1 : 0;
+
 
         try {
             const request = new sql.Request()
                 .input('from', From)
                 .input('to', To)
-                .input('userid', UserId)
-                .input('isSalesPerson', isSalesPerson)
-                .input('Branch_Id', Branch_Id)
-                .query(`
-                    SELECT
-                        a.*,
-                        u.Name AS User_Name,
-                        u.BranchId AS Branch_Id
-                    FROM
-                        tbl_Attendance AS a
-                        LEFT JOIN tbl_Users AS u ON u.UserId = a.UserId
-                    WHERE
-                        CONVERT(DATE, a.Start_Date) >= CONVERT(DATE, @from)
-                        AND CONVERT(DATE, a.Start_Date) <= CONVERT(DATE, @to)
-                        ${checkIsNumber(UserId as string) ? ' AND a.UserId = @userid ' : ''}
-                        ${checkIsNumber(Branch_Id as string) ? ' AND u.BranchId = @Branch_Id ' : ''}
-                        ${(isEqualNumber(Number(UserTypeID), 3) || isEqualNumber(Number(UserTypeID), 6)) ? ' AND a.IsSalesPerson = @isSalesPerson ' : ''}
-                    ORDER BY CONVERT(DATETIME, a.Start_Date), a.UserId `);
+                .input('userid', userIdNum)
+                .input('isSalesPerson', isSalesPerson);
 
-            const result = await request;
+            const checkUserQuery = `
+                SELECT id, Name, BranchId 
+                FROM tbl_Users 
+                WHERE id = @userid
+            `;
+            
+            const userResult = await request.query(checkUserQuery);
 
-            if (result.recordset.length > 0) {
-                const withImg: AttendanceWithImageUrls[] = result.recordset.map((o: AttendanceRecord) => ({
+            const checkAttendanceQuery = `
+                SELECT 
+                    COUNT(*) as count,
+                    MIN(Start_Date) as min_date,
+                    MAX(Start_Date) as max_date
+                FROM tbl_Attendance 
+                WHERE UserId = @userid
+            `;
+            
+            const attendanceCheck = await request.query(checkAttendanceQuery);
+
+ 
+            const queries = [
+                {
+                    name: "Query with CONVERT(DATE)",
+                    query: `
+                        SELECT
+                            a.*,
+                            u.Name AS User_Name
+                        FROM
+                            tbl_Attendance AS a
+                            LEFT JOIN tbl_Users AS u ON u.id = a.UserId
+                        WHERE
+                            CONVERT(DATE, a.Start_Date) >= CONVERT(DATE, @from)
+                            AND CONVERT(DATE, a.Start_Date) <= CONVERT(DATE, @to)
+                            AND a.UserId = @userid
+                            AND a.IsSalesPerson = @isSalesPerson
+                        ORDER BY a.Start_Date
+                    `
+                },
+                {
+                    name: "Query with CAST",
+                    query: `
+                        SELECT
+                            a.*,
+                            u.Name AS User_Name
+                        FROM
+                            tbl_Attendance AS a
+                            LEFT JOIN tbl_Users AS u ON u.id = a.UserId
+                        WHERE
+                            CAST(a.Start_Date AS DATE) >= CAST(@from AS DATE)
+                            AND CAST(a.Start_Date AS DATE) <= CAST(@to AS DATE)
+                            AND a.UserId = @userid
+                            AND a.IsSalesPerson = @isSalesPerson
+                        ORDER BY a.Start_Date
+                    `
+                },
+                {
+                    name: "Query without date conversion",
+                    query: `
+                        SELECT
+                            a.*,
+                            u.Name AS User_Name
+                        FROM
+                            tbl_Attendance AS a
+                            LEFT JOIN tbl_Users AS u ON u.id = a.UserId
+                        WHERE
+                            a.Start_Date >= @from
+                            AND a.Start_Date <= @to
+                            AND a.UserId = @userid
+                            AND a.IsSalesPerson = @isSalesPerson
+                        ORDER BY a.Start_Date
+                    `
+                }
+            ];
+
+            // Try each query
+            for (const q of queries) {
+                const result = await request.query(q.query);
+                
+                if (result.recordset.length > 0) {
+                    
+                    const withImg = result.recordset.map((o: any) => ({
+                        ...o,
+                        startKmImageUrl: o?.Start_KM_ImageName ? getImageIfExist('attendance', o.Start_KM_ImageName) : null,
+                        endKmImageUrl: o?.End_KM_ImageName ? getImageIfExist('attendance', o.End_KM_ImageName) : null
+                    }));
+                    return dataFound(res, withImg);
+                }
+            }
+
+            const finalQuery = `
+                SELECT
+                    a.*,
+                    u.Name AS User_Name
+                FROM
+                    tbl_Attendance AS a
+                    LEFT JOIN tbl_Users AS u ON u.id = a.UserId
+                WHERE
+                    a.UserId = @userid
+                    AND CONVERT(DATE, a.Start_Date) >= CONVERT(DATE, @from)
+                    AND CONVERT(DATE, a.Start_Date) <= CONVERT(DATE, @to)
+                ORDER BY a.Start_Date
+            `;
+            
+          
+            const finalResult = await request.query(finalQuery);
+            
+            if (finalResult.recordset.length > 0) {
+                const withImg = finalResult.recordset.map((o: any) => ({
                     ...o,
                     startKmImageUrl: o?.Start_KM_ImageName ? getImageIfExist('attendance', o.Start_KM_ImageName) : null,
                     endKmImageUrl: o?.End_KM_ImageName ? getImageIfExist('attendance', o.End_KM_ImageName) : null
                 }));
                 return dataFound(res, withImg);
-            } else {
-                return noData(res);
             }
+
+            return noData(res);
+
         } catch (e) {
+            console.error('DATABASE ERROR:', e);
             return servError(e, res);
         }
-    };
+    } catch (error) {
+        console.error('GENERAL ERROR:', error);
+        return servError(error, res);
+    }
+};
 
     const getDepartment = async (req: Request, res: Response): Promise<Response> => {
         try {

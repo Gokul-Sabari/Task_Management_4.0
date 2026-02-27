@@ -7,6 +7,7 @@ const modelName = 'Attendance';
 export interface AttendanceAttributes {
     Id: number;
     UserId: number;
+    UserTypeID?: number | null; // Add this field
     Start_Date: Date;
     End_Date?: Date | null;
     Latitude: number;
@@ -139,6 +140,12 @@ Attendance.init(
                     msg: 'User ID must be positive'
                 }
             }
+        },
+         UserTypeID: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            field: 'UserTypeID',
+            defaultValue: null
         },
         Start_Date: {
             type: DataTypes.DATE,

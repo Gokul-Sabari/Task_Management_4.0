@@ -14,6 +14,8 @@ import employees from './employeemaster.route';
 import projectSchedule from './projectSchedule.route';
 import taskAssign from './taskAssign.route';
 import projectScheduleEmp from './projectScheduleEmp.route'
+import WorkParameter from './workParameter.routes';
+import  WorkMaster  from './workMaster.routes';
 const router = express.Router();
 
 
@@ -32,6 +34,9 @@ router.use('/employees',employees)
 router.use('/projectSchedule',projectSchedule)
 router.use('/taskAssign',taskAssign)
 router.use('/projectScheduleEmp',projectScheduleEmp)
+router.use('/workParameter',WorkParameter)
+
+router.use('/workMaster',WorkMaster)
 
 
 export default router;
